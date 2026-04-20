@@ -4,6 +4,8 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Настройки движения")]
     public float speed = 5f;
+    public int maxJumps = 2;
+    private int currentJumps;
     public float jumpForce = 10f;
     public float crouchSpeed = 2f;
 
@@ -15,6 +17,15 @@ public class PlayerController : MonoBehaviour
     [Header("Ближний бой")]
     public int meleeDamage = 2;
     public float meleeRange = 1.2f;
+
+    [Header("❤️ Здоровье")]
+    public int maxHealth = 3;
+    [HideInInspector] public int currentHealth;
+    
+    [Header("Эффекты")]
+    public float invincibilityTime = 1f;
+    private bool _isInvincible = false;
+    private SpriteRenderer _spriteRenderer;
 
     private Rigidbody2D rb;
     private BoxCollider2D col;
@@ -38,33 +49,47 @@ public class PlayerController : MonoBehaviour
             firePoint.SetParent(transform);
             firePoint.localPosition = new Vector3(0.5f, 0, 0);
         }
+        
+        currentHealth = maxHealth;
+        _spriteRenderer = GetComponent<SpriteRenderer>();
+        currentJumps = maxJumps;
+        
+        GameManager.Instance?.UpdateHealthUI();
     }
 
     void Update()
     {
-        // === ПРОВЕРКА ЗЕМЛИ ===
-        // Луч вниз от центра игрока. Длина 0.55f гарантирует срабатывание только на полу
-        isGrounded = Physics2D.Raycast(transform.position, Vector2.down, 0.55f);
+        // === ПРОВЕРКА ЗЕМЛИ (надёжная через OverlapBox) ===
+        // === ПРОВЕРКА ЗЕМЛИ (два луча от ног) ===
+        float checkDistance = 0.6f;
+        isGrounded = Physics2D.Raycast(transform.position + Vector3.left * 0.2f, Vector2.down, checkDistance) ||
+                     Physics2D.Raycast(transform.position + Vector3.right * 0.2f, Vector2.down, checkDistance);
 
-        // === ПРЫЖОК (только когда на земле и не приседает) ===
-        if (Input.GetKeyDown(KeyCode.W) && isGrounded && !isCrouching)
+        if (isGrounded)
         {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            currentJumps = maxJumps;
         }
 
-        // === ПРИСЕДАНИЕ ===
-        isCrouching = Input.GetKey(KeyCode.S);
+        if (Input.GetKeyDown(KeyCode.Space) && currentJumps > 0 && !isCrouching)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            currentJumps--;
+        }
+
+
+        // === ПРИСЕДАНИЕ (CTRL) ===
+        isCrouching = Input.GetKey(KeyCode.LeftControl);
         UpdateCrouchCollider();
 
         // === ПОВОРОТ ===
         if (Input.GetKey(KeyCode.D)) transform.localScale = new Vector3(1, 1, 1);
         if (Input.GetKey(KeyCode.A)) transform.localScale = new Vector3(-1, 1, 1);
 
-        // === ПЕРЕКЛЮЧЕНИЕ РЕЖИМА (R) ===
-        if (Input.GetKeyDown(KeyCode.R))
+        // === СМЕНА РЕЖИМА (ПКМ) ===
+        if (Input.GetMouseButtonDown(1))
         {
             isRangedMode = !isRangedMode;
-            Debug.Log("Режим: " + (isRangedMode ? "🔫 Стрельба" : "🗡️ Ближний бой"));
+            Debug.Log("Режим: " + (isRangedMode ? "🔫 Дальний" : "🗡️ Ближний"));
         }
 
         // === АТАКА (ЛКМ) ===
@@ -134,7 +159,47 @@ public class PlayerController : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
-        Debug.Log($"👤 Игрок получил урон: {amount}");
-        // Здесь позже добавим логику здоровья
+        if (_isInvincible || currentHealth <= 0) return;
+        
+        currentHealth -= amount;
+        Debug.Log($"👤 Урон! Здоровье: {currentHealth}/{maxHealth}");
+        
+        StartCoroutine(InvincibilityCoroutine());
+        
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+        GameManager.Instance?.UpdateHealthUI();
+    }
+
+    System.Collections.IEnumerator InvincibilityCoroutine()
+    {
+        _isInvincible = true;
+        float elapsed = 0f;
+        
+        while (elapsed < invincibilityTime)
+        {
+            _spriteRenderer.enabled = !_spriteRenderer.enabled;
+            yield return new WaitForSeconds(0.1f);
+            elapsed += 0.1f;
+        }
+        _spriteRenderer.enabled = true;
+        _isInvincible = false;
+    }
+
+    void Die()
+    {
+        Debug.Log("💀 Игрок умер!");
+        enabled = false;
+        rb.linearVelocity = Vector2.zero;
+        rb.bodyType = RigidbodyType2D.Static;
+        _spriteRenderer.color = Color.gray;
+        Invoke(nameof(ShowGameOver), 0.5f);
+    }
+
+    void ShowGameOver()
+    {
+        GameManager.Instance?.ShowGameOver();
     }
 }
