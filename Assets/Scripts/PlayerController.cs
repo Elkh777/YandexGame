@@ -2,13 +2,6 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    [Header("Настройки движения")]
-    public float speed = 5f;
-    public int maxJumps = 2;
-    private int currentJumps;
-    public float jumpForce = 10f;
-    public float crouchSpeed = 2f;
-
     [Header("Атака")]
     public GameObject bulletPrefab;
     public Transform firePoint;
@@ -26,22 +19,18 @@ public class PlayerController : MonoBehaviour
     public float invincibilityTime = 1f;
     private bool _isInvincible = false;
     private SpriteRenderer _spriteRenderer;
+    private PlayerMovement movement;
 
-    private Rigidbody2D rb;
-    private BoxCollider2D col;
-    private bool isCrouching = false;
-    private Vector2 originalSize;
-    private Vector2 originalOffset;
-    private bool isGrounded = false;
     private float nextFireTime = 0f;
     private bool isRangedMode = true;
 
     void Start()
     {
-        rb = GetComponent<Rigidbody2D>();
-        col = GetComponent<BoxCollider2D>();
-        originalSize = col.size;
-        originalOffset = col.offset;
+        movement = GetComponent<PlayerMovement>();
+        if (movement == null)
+        {
+            movement = gameObject.AddComponent<PlayerMovement>();
+        }
 
         if (firePoint == null)
         {
@@ -52,76 +41,23 @@ public class PlayerController : MonoBehaviour
         
         currentHealth = maxHealth;
         _spriteRenderer = GetComponent<SpriteRenderer>();
-        currentJumps = maxJumps;
         
         GameManager.Instance?.UpdateHealthUI();
     }
 
     void Update()
     {
-        // === ПРОВЕРКА ЗЕМЛИ (надёжная через OverlapBox) ===
-        // === ПРОВЕРКА ЗЕМЛИ (два луча от ног) ===
-        float checkDistance = 0.6f;
-        isGrounded = Physics2D.Raycast(transform.position + Vector3.left * 0.2f, Vector2.down, checkDistance) ||
-                     Physics2D.Raycast(transform.position + Vector3.right * 0.2f, Vector2.down, checkDistance);
-
-        if (isGrounded)
-        {
-            currentJumps = maxJumps;
-        }
-
-        if (Input.GetKeyDown(KeyCode.Space) && currentJumps > 0 && !isCrouching)
-        {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            currentJumps--;
-        }
-
-
-        // === ПРИСЕДАНИЕ (CTRL) ===
-        isCrouching = Input.GetKey(KeyCode.LeftControl);
-        UpdateCrouchCollider();
-
-        // === ПОВОРОТ ===
-        if (Input.GetKey(KeyCode.D)) transform.localScale = new Vector3(1, 1, 1);
-        if (Input.GetKey(KeyCode.A)) transform.localScale = new Vector3(-1, 1, 1);
-
-        // === СМЕНА РЕЖИМА (ПКМ) ===
         if (Input.GetMouseButtonDown(1))
         {
             isRangedMode = !isRangedMode;
             Debug.Log("Режим: " + (isRangedMode ? "🔫 Дальний" : "🗡️ Ближний"));
         }
 
-        // === АТАКА (ЛКМ) ===
         if (Input.GetMouseButton(0) && Time.time >= nextFireTime)
         {
             if (isRangedMode) Shoot();
             else MeleeAttack();
             nextFireTime = Time.time + fireRate;
-        }
-    }
-
-    void FixedUpdate()
-    {
-        float move = 0f;
-        if (Input.GetKey(KeyCode.D)) move = 1f;
-        if (Input.GetKey(KeyCode.A)) move = -1f;
-
-        float currentSpeed = isCrouching ? crouchSpeed : speed;
-        rb.linearVelocity = new Vector2(move * currentSpeed, rb.linearVelocity.y);
-    }
-
-    void UpdateCrouchCollider()
-    {
-        if (isCrouching)
-        {
-            col.size = new Vector2(originalSize.x, originalSize.y / 2);
-            col.offset = new Vector2(originalOffset.x, -originalSize.y / 4);
-        }
-        else
-        {
-            col.size = originalSize;
-            col.offset = originalOffset;
         }
     }
 
@@ -191,9 +127,19 @@ public class PlayerController : MonoBehaviour
     void Die()
     {
         Debug.Log("💀 Игрок умер!");
+        if (movement != null)
+        {
+            movement.enabled = false;
+        }
         enabled = false;
-        rb.linearVelocity = Vector2.zero;
-        rb.bodyType = RigidbodyType2D.Static;
+
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.bodyType = RigidbodyType2D.Static;
+        }
+
         _spriteRenderer.color = Color.gray;
         Invoke(nameof(ShowGameOver), 0.5f);
     }

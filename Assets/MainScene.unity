@@ -738,6 +738,7 @@ GameObject:
   - component: {fileID: 816024162}
   - component: {fileID: 816024161}
   - component: {fileID: 816024160}
+  - component: {fileID: 816024164}
   - component: {fileID: 816024159}
   m_Layer: 0
   m_Name: Player
@@ -758,9 +759,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f6e2ebe395748f0a03ba708195be4c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  speed: 5
-  jumpForce: 10
-  crouchSpeed: 2
   bulletPrefab: {fileID: 2753150666681094836, guid: 51c19fb5cb46745938f7e591afd1a815, type: 3}
   firePoint: {fileID: 0}
   fireRate: 0.5
@@ -769,6 +767,22 @@ MonoBehaviour:
   maxHealth: 3
   currentHealth: 0
   invincibilityTime: 1
+--- !u!114 &816024164
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 816024158}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca887db2e59149169799dcfee11cb5f7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
+  speed: 5
+  maxJumps: 2
+  jumpForce: 10
+  crouchSpeed: 2
 --- !u!61 &816024160
 BoxCollider2D:
   m_ObjectHideFlags: 0
