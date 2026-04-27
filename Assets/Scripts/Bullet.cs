@@ -2,43 +2,25 @@ using UnityEngine;
 
 public class Bullet : MonoBehaviour
 {
-    public float speed = 15f;
-    public int damage = 1;          // Урон пули (можно менять в инспекторе)
+    public int damage = 1;
     public float lifetime = 3f;
+    public float speed = 15f; // добавлено для совместимости с префабом (скорость задаётся в PlayerController)
 
-    private Vector2 _direction;
-
-    public void SetDirection(Vector2 dir)
-    {
-        _direction = dir.normalized;
-    }
-
-    void Start()
+    private void Start()
     {
         Destroy(gameObject, lifetime);
     }
 
-    void Update()
+    private void OnTriggerEnter2D(Collider2D other)
     {
-        transform.Translate(_direction * speed * Time.deltaTime);
-    }
-
-    void OnTriggerEnter2D(Collider2D other)
-    {
-        // Если попали во врага
         if (other.CompareTag("Enemy"))
         {
-            Debug.Log("💥 Попадание! Урон: " + damage);
-            
-            // Получаем скрипт врага и наносим урон
-            Enemy enemy = other.GetComponent<Enemy>();
-            if (enemy != null)
-            {
-                enemy.TakeDamage(damage);
-            }
+            other.GetComponent<Enemy>()?.TakeDamage(damage);
+            Destroy(gameObject);
         }
-        
-        // Уничтожаем пулю
-        Destroy(gameObject);
+        else if (other.CompareTag("Wall"))
+        {
+            Destroy(gameObject);
+        }
     }
 }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class Enemy : MonoBehaviour
 {
@@ -28,7 +29,7 @@ public class Enemy : MonoBehaviour
     private bool isChasing = false;
     private bool isDead = false;
     private SpriteRenderer spriteRenderer;
-    private Rigidbody2D rb; // Ссылка на физику
+    private Rigidbody2D rb;
 
     void Start()
     {
@@ -58,7 +59,6 @@ public class Enemy : MonoBehaviour
         CheckPlayerDetection();
     }
 
-    // Движение перенесено в FixedUpdate для корректной физики
     void FixedUpdate()
     {
         if (isChasing) ChasePlayer();
@@ -92,8 +92,6 @@ public class Enemy : MonoBehaviour
 
         float dir = currentTarget.position.x - transform.position.x;
         float moveX = Mathf.Sign(dir) * patrolSpeed;
-
-        // Двигаем только по оси X. Ось Y управляется гравитацией автоматически!
         rb.linearVelocity = new Vector2(moveX, rb.linearVelocity.y);
 
         if (Mathf.Abs(dir) < 0.1f)
@@ -107,17 +105,17 @@ public class Enemy : MonoBehaviour
     {
         float dir = player.position.x - transform.position.x;
         float moveX = Mathf.Sign(dir) * chaseSpeed;
-
         rb.linearVelocity = new Vector2(moveX, rb.linearVelocity.y);
         FlipSprite(moveX > 0);
 
-        if (Vector2.Distance(transform.position, player.position) <= attackRange)
+        if (Vector2.Distance(transform.position, player.position) <= attackRange && Time.time >= nextAttackTime)
         {
-            if (Time.time >= nextAttackTime)
+            nextAttackTime = Time.time + attackCooldown;
+            PlayerHealth playerHealth = player.GetComponent<PlayerHealth>();
+            if (playerHealth != null)
             {
-                PlayerController pScript = player.GetComponent<PlayerController>();
-                if (pScript != null) pScript.TakeDamage(attackDamage);
-                nextAttackTime = Time.time + attackCooldown;
+                Vector2 knockback = (player.position - transform.position).normalized * 5f;
+                playerHealth.TakeDamage(attackDamage, knockback);
             }
         }
     }
@@ -135,7 +133,7 @@ public class Enemy : MonoBehaviour
         if (currentHealth <= 0) Die();
     }
 
-    System.Collections.IEnumerator FlashEffect()
+    IEnumerator FlashEffect()
     {
         Color original = spriteRenderer.color;
         spriteRenderer.color = Color.red;

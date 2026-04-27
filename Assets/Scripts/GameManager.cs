@@ -17,33 +17,25 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
-        // Если Instance уже есть (значит мы перезагрузили сцену и старый объект еще жив мгновение), уничтожаем дубль.
-        // Но в нашем новом подходе мы удалим DontDestroyOnLoad, так что это просто страховка.
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
-        
         Instance = this;
         
-        // Подписываем кнопку на клик
         if (restartButton != null)
         {
-            restartButton.onClick.RemoveAllListeners(); // Очищаем старые подписки
+            restartButton.onClick.RemoveAllListeners();
             restartButton.onClick.AddListener(RestartGame);
         }
     }
 
     void Start()
     {
-        // При старте сцены всегда скрываем Game Over
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
-            
         _isGameOver = false;
-        
-        // Обновляем сердечки
         UpdateHealthUI();
     }
 
@@ -51,24 +43,21 @@ public class GameManager : MonoBehaviour
     {
         if (_isGameOver) return;
         _isGameOver = true;
-        
         if (gameOverPanel != null)
             gameOverPanel.SetActive(true);
-            
         Debug.Log("🎮 GAME OVER!");
     }
 
     public void UpdateHealthUI()
     {
-        PlayerController player = FindObjectOfType<PlayerController>();
-        if (player == null || healthIcons == null) return;
+    PlayerHealth playerHealth = FindFirstObjectByType<PlayerHealth>();
+        if (playerHealth == null || healthIcons == null) return;
         
         for (int i = 0; i < healthIcons.Length; i++)
         {
             if (healthIcons[i] != null)
             {
-                // Показываем иконку, если её индекс меньше текущего здоровья
-                healthIcons[i].SetActive(i < player.currentHealth);
+                healthIcons[i].SetActive(i < playerHealth.currentHealth);
             }
         }
     }
@@ -76,7 +65,6 @@ public class GameManager : MonoBehaviour
     public void RestartGame()
     {
         Debug.Log("🔄 Рестарт...");
-        // Просто перезагружаем сцену. GameManager умрет и создастся новый, чистый.
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }

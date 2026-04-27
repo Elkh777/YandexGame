@@ -1,205 +1,142 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerController : MonoBehaviour
 {
-    [Header("Настройки движения")]
-    public float speed = 5f;
-    public int maxJumps = 2;
-    private int currentJumps;
+    [Header("Movement")]
+    public float moveSpeed = 5f;
     public float jumpForce = 10f;
-    public float crouchSpeed = 2f;
+    public LayerMask groundLayer;
+    public Transform groundCheck;
+    public float groundCheckRadius = 0.2f;
 
-    [Header("Атака")]
-    public GameObject bulletPrefab;
+    [Header("Crouch")]
+    public float crouchHeight = 0.5f;
+    public float standHeight = 1f;
+    public float crouchSpeed = 2.5f;
+
+    [Header("Combat")]
+    public GameObject projectilePrefab;
     public Transform firePoint;
-    public float fireRate = 0.5f;
+    public float projectileSpeed = 15f;
+    public float meleeRange = 1f;
+    public int meleeDamage = 1;
+    public float attackCooldown = 0.5f;
+    public LayerMask enemyLayer;
 
-    [Header("Ближний бой")]
-    public int meleeDamage = 2;
-    public float meleeRange = 1.2f;
-
-    [Header("❤️ Здоровье")]
-    public int maxHealth = 3;
-    [HideInInspector] public int currentHealth;
-    
-    [Header("Эффекты")]
-    public float invincibilityTime = 1f;
-    private bool _isInvincible = false;
-    private SpriteRenderer _spriteRenderer;
+    [Header("Weapon")]
+    public GameObject meleeIndicator;
+    public GameObject rangedIndicator;
+    public bool isRangedMode = false;
 
     private Rigidbody2D rb;
-    private BoxCollider2D col;
-    private bool isCrouching = false;
-    private Vector2 originalSize;
-    private Vector2 originalOffset;
-    private bool isGrounded = false;
-    private float nextFireTime = 0f;
-    private bool isRangedMode = true;
+    private bool isGrounded;
+    private bool isCrouching;
+    private float attackTimer;
+    private Vector2 moveInput;
 
-    void Start()
+    private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
-        col = GetComponent<BoxCollider2D>();
-        originalSize = col.size;
-        originalOffset = col.offset;
-
-        if (firePoint == null)
-        {
-            firePoint = new GameObject("FirePoint").transform;
-            firePoint.SetParent(transform);
-            firePoint.localPosition = new Vector3(0.5f, 0, 0);
-        }
-        
-        currentHealth = maxHealth;
-        _spriteRenderer = GetComponent<SpriteRenderer>();
-        currentJumps = maxJumps;
-        
-        GameManager.Instance?.UpdateHealthUI();
     }
 
-    void Update()
+    private void Update()
     {
-        // === ПРОВЕРКА ЗЕМЛИ (надёжная через OverlapBox) ===
-        // === ПРОВЕРКА ЗЕМЛИ (два луча от ног) ===
-        float checkDistance = 0.6f;
-        isGrounded = Physics2D.Raycast(transform.position + Vector3.left * 0.2f, Vector2.down, checkDistance) ||
-                     Physics2D.Raycast(transform.position + Vector3.right * 0.2f, Vector2.down, checkDistance);
+        attackTimer -= Time.deltaTime;
+        isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+    }
 
-        if (isGrounded)
-        {
-            currentJumps = maxJumps;
-        }
+    private void FixedUpdate()
+    {
+        float speed = isCrouching ? crouchSpeed : moveSpeed;
+        rb.linearVelocity = new Vector2(moveInput.x * speed, rb.linearVelocity.y);
+    }
 
-        if (Input.GetKeyDown(KeyCode.Space) && currentJumps > 0 && !isCrouching)
+    public void OnMove(InputValue value)
+    {
+        moveInput = value.Get<Vector2>();
+    }
+
+    public void OnJump(InputValue value)
+    {
+        if (isGrounded && !isCrouching)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            currentJumps--;
-        }
-
-
-        // === ПРИСЕДАНИЕ (CTRL) ===
-        isCrouching = Input.GetKey(KeyCode.LeftControl);
-        UpdateCrouchCollider();
-
-        // === ПОВОРОТ ===
-        if (Input.GetKey(KeyCode.D)) transform.localScale = new Vector3(1, 1, 1);
-        if (Input.GetKey(KeyCode.A)) transform.localScale = new Vector3(-1, 1, 1);
-
-        // === СМЕНА РЕЖИМА (ПКМ) ===
-        if (Input.GetMouseButtonDown(1))
-        {
-            isRangedMode = !isRangedMode;
-            Debug.Log("Режим: " + (isRangedMode ? "🔫 Дальний" : "🗡️ Ближний"));
-        }
-
-        // === АТАКА (ЛКМ) ===
-        if (Input.GetMouseButton(0) && Time.time >= nextFireTime)
-        {
-            if (isRangedMode) Shoot();
-            else MeleeAttack();
-            nextFireTime = Time.time + fireRate;
         }
     }
 
-    void FixedUpdate()
+    public void OnCrouch(InputValue value)
     {
-        float move = 0f;
-        if (Input.GetKey(KeyCode.D)) move = 1f;
-        if (Input.GetKey(KeyCode.A)) move = -1f;
-
-        float currentSpeed = isCrouching ? crouchSpeed : speed;
-        rb.linearVelocity = new Vector2(move * currentSpeed, rb.linearVelocity.y);
+        isCrouching = value.isPressed;
+        Vector3 scale = transform.localScale;
+        scale.y = isCrouching ? crouchHeight : standHeight;
+        transform.localScale = scale;
     }
 
-    void UpdateCrouchCollider()
+    public void OnAttack(InputValue value)
     {
-        if (isCrouching)
+        if (attackTimer > 0) return;
+        attackTimer = attackCooldown;
+
+        if (isRangedMode && projectilePrefab != null)
         {
-            col.size = new Vector2(originalSize.x, originalSize.y / 2);
-            col.offset = new Vector2(originalOffset.x, -originalSize.y / 4);
+            GameObject proj = Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
+            Vector2 direction = (Camera.main.ScreenToWorldPoint(Mouse.current.position.ReadValue()) - firePoint.position).normalized;
+            Rigidbody2D rbProj = proj.GetComponent<Rigidbody2D>();
+            if (rbProj != null) rbProj.linearVelocity = direction * projectileSpeed;
+            Bullet bullet = proj.GetComponent<Bullet>();
+            if (bullet != null) bullet.damage = meleeDamage;
         }
         else
         {
-            col.size = originalSize;
-            col.offset = originalOffset;
-        }
-    }
-
-    void Shoot()
-    {
-        if (bulletPrefab == null)
-        {
-            Debug.LogWarning("Префаб пули не назначен!");
-            return;
-        }
-        GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
-        Bullet bulletScript = bullet.GetComponent<Bullet>();
-        Vector2 shootDir = transform.localScale.x > 0 ? Vector2.right : Vector2.left;
-        bulletScript.SetDirection(shootDir);
-    }
-
-    void MeleeAttack()
-    {
-        Vector2 attackPos = transform.position + (transform.localScale.x > 0 ? Vector3.right : Vector3.left);
-        Collider2D[] hits = Physics2D.OverlapCircleAll(attackPos, meleeRange);
-        
-        foreach (Collider2D hit in hits)
-        {
-            if (hit.CompareTag("Enemy"))
+            Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(firePoint.position, meleeRange, enemyLayer);
+            foreach (var enemy in hitEnemies)
             {
-                Enemy enemy = hit.GetComponent<Enemy>();
-                if (enemy != null)
-                {
-                    enemy.TakeDamage(meleeDamage);
-                    Debug.Log($"🗡️ Удар по врагу! Урон: {meleeDamage}");
-                }
+                enemy.GetComponent<Enemy>()?.TakeDamage(meleeDamage);
             }
         }
     }
 
-    public void TakeDamage(int amount)
+    public void OnSwitchMode(InputValue value)
     {
-        if (_isInvincible || currentHealth <= 0) return;
-        
-        currentHealth -= amount;
-        Debug.Log($"👤 Урон! Здоровье: {currentHealth}/{maxHealth}");
-        
-        StartCoroutine(InvincibilityCoroutine());
-        
-        if (currentHealth <= 0)
+        isRangedMode = !isRangedMode;
+        if (meleeIndicator != null) meleeIndicator.SetActive(!isRangedMode);
+        if (rangedIndicator != null) rangedIndicator.SetActive(isRangedMode);
+    }
+
+    public void TakeDamage(int damage)
+    {
+        GetComponent<PlayerHealth>().TakeDamage(damage, Vector2.zero);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (firePoint != null)
+            Gizmos.DrawWireSphere(firePoint.position, meleeRange);
+        if (groundCheck != null)
+            Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+    }
+    void Start()
+{
+    if (PlayerPrefs.HasKey("SaveX"))
+    {
+        float x = PlayerPrefs.GetFloat("SaveX");
+        float y = PlayerPrefs.GetFloat("SaveY");
+        float z = PlayerPrefs.GetFloat("SaveZ");
+        transform.position = new Vector3(x, y, z);
+        Debug.Log("📀 Загружено сохранение: " + transform.position);
+
+        if (PlayerPrefs.HasKey("SaveHealth"))
         {
-            Die();
+            int savedHealth = PlayerPrefs.GetInt("SaveHealth");
+            PlayerHealth health = GetComponent<PlayerHealth>();
+            if (health != null)
+            {
+                health.currentHealth = savedHealth;
+                if (health.healthUI != null)
+                    health.healthUI.UpdateHealth(health.currentHealth, health.maxHealth);
+            }
         }
-        GameManager.Instance?.UpdateHealthUI();
     }
-
-    System.Collections.IEnumerator InvincibilityCoroutine()
-    {
-        _isInvincible = true;
-        float elapsed = 0f;
-        
-        while (elapsed < invincibilityTime)
-        {
-            _spriteRenderer.enabled = !_spriteRenderer.enabled;
-            yield return new WaitForSeconds(0.1f);
-            elapsed += 0.1f;
-        }
-        _spriteRenderer.enabled = true;
-        _isInvincible = false;
-    }
-
-    void Die()
-    {
-        Debug.Log("💀 Игрок умер!");
-        enabled = false;
-        rb.linearVelocity = Vector2.zero;
-        rb.bodyType = RigidbodyType2D.Static;
-        _spriteRenderer.color = Color.gray;
-        Invoke(nameof(ShowGameOver), 0.5f);
-    }
-
-    void ShowGameOver()
-    {
-        GameManager.Instance?.ShowGameOver();
-    }
+}
 }
