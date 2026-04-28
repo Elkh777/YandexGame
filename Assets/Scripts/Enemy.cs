@@ -115,7 +115,7 @@ public class Enemy : MonoBehaviour
         {
             if (Time.time >= nextAttackTime)
             {
-                PlayerController pScript = player.GetComponent<PlayerController>();
+                PlayerHealth pScript = player.GetComponent<PlayerHealth>();
                 if (pScript != null) pScript.TakeDamage(attackDamage);
                 nextAttackTime = Time.time + attackCooldown;
             }

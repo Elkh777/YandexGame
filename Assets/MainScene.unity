@@ -740,6 +740,7 @@ GameObject:
   - component: {fileID: 816024160}
   - component: {fileID: 816024164}
   - component: {fileID: 816024159}
+  - component: {fileID: 816024165}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -756,14 +757,26 @@ MonoBehaviour:
   m_GameObject: {fileID: 816024158}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b4f6e2ebe395748f0a03ba708195be4c, type: 3}
+  m_Script: {fileID: 11500000, guid: b7b2f01e18a849729c118d22f5f20977, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAttack
   bulletPrefab: {fileID: 2753150666681094836, guid: 51c19fb5cb46745938f7e591afd1a815, type: 3}
   firePoint: {fileID: 0}
   fireRate: 0.5
   meleeDamage: 2
   meleeRange: 1.2
+--- !u!114 &816024165
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 816024158}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f979223b5d05435199053455cc146e3e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHealth: 3
   currentHealth: 0
   invincibilityTime: 1

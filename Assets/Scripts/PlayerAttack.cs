@@ -10,4 +10,65 @@ public class PlayerAttack : MonoBehaviour
     [Header("Ближний бой")]
     public int meleeDamage = 2;
     public float meleeRange = 1.2f;
+
+    private float nextFireTime = 0f;
+    private bool isRangedMode = true;
+
+    void Start()
+    {
+        if (firePoint == null)
+        {
+            firePoint = new GameObject("FirePoint").transform;
+            firePoint.SetParent(transform);
+            firePoint.localPosition = new Vector3(0.5f, 0, 0);
+        }
+    }
+
+    void Update()
+    {
+        if (Input.GetMouseButtonDown(1))
+        {
+            isRangedMode = !isRangedMode;
+            Debug.Log("Режим: " + (isRangedMode ? "🔫 Дальний" : "🗡️ Ближний"));
+        }
+
+        if (Input.GetMouseButton(0) && Time.time >= nextFireTime)
+        {
+            if (isRangedMode) Shoot();
+            else MeleeAttack();
+            nextFireTime = Time.time + fireRate;
+        }
+    }
+
+    void Shoot()
+    {
+        if (bulletPrefab == null)
+        {
+            Debug.LogWarning("Префаб пули не назначен!");
+            return;
+        }
+        GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
+        Bullet bulletScript = bullet.GetComponent<Bullet>();
+        Vector2 shootDir = transform.localScale.x > 0 ? Vector2.right : Vector2.left;
+        bulletScript.SetDirection(shootDir);
+    }
+
+    void MeleeAttack()
+    {
+        Vector2 attackPos = transform.position + (transform.localScale.x > 0 ? Vector3.right : Vector3.left);
+        Collider2D[] hits = Physics2D.OverlapCircleAll(attackPos, meleeRange);
+        
+        foreach (Collider2D hit in hits)
+        {
+            if (hit.CompareTag("Enemy"))
+            {
+                Enemy enemy = hit.GetComponent<Enemy>();
+                if (enemy != null)
+                {
+                    enemy.TakeDamage(meleeDamage);
+                    Debug.Log($"🗡️ Удар по врагу! Урон: {meleeDamage}");
+                }
+            }
+        }
+    }
 }
