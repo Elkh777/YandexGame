@@ -60,7 +60,7 @@ public class GameManager : MonoBehaviour
 
     public void UpdateHealthUI()
     {
-        PlayerController player = FindObjectOfType<PlayerController>();
+        PlayerHealth player = FindObjectOfType<PlayerHealth>();
         if (player == null || healthIcons == null) return;
         
         for (int i = 0; i < healthIcons.Length; i++)

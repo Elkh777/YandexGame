@@ -111,11 +111,14 @@ public class Enemy : MonoBehaviour
         rb.linearVelocity = new Vector2(moveX, rb.linearVelocity.y);
         FlipSprite(moveX > 0);
 
-        if (Vector2.Distance(transform.position, player.position) <= attackRange)
+        float distanceToPlayer = Vector2.Distance(transform.position, player.position);
+        float verticalDifference = Mathf.Abs(player.position.y - transform.position.y);
+
+        if (distanceToPlayer <= attackRange && verticalDifference < 0.6f)
         {
             if (Time.time >= nextAttackTime)
             {
-                PlayerController pScript = player.GetComponent<PlayerController>();
+                PlayerHealth pScript = player.GetComponent<PlayerHealth>();
                 if (pScript != null) pScript.TakeDamage(attackDamage);
                 nextAttackTime = Time.time + attackCooldown;
             }
