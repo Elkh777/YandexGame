@@ -6,10 +6,9 @@ public class PlayerMovement : MonoBehaviour
 {
     [Header("Настройки движения")]
     public float speed = 5f;
-    public int maxJumps = 2;
-    private int currentJumps;
     public float jumpForce = 10f;
     public float crouchSpeed = 2f;
+    public float groundCheckDistance = 0.1f;
 
     private Rigidbody2D rb;
     private BoxCollider2D col;
@@ -24,31 +23,47 @@ public class PlayerMovement : MonoBehaviour
         col = GetComponent<BoxCollider2D>();
         originalSize = col.size;
         originalOffset = col.offset;
-        currentJumps = maxJumps;
     }
 
     void Update()
     {
-        float checkDistance = 0.6f;
-        isGrounded = Physics2D.Raycast(transform.position + Vector3.left * 0.2f, Vector2.down, checkDistance) ||
-                     Physics2D.Raycast(transform.position + Vector3.right * 0.2f, Vector2.down, checkDistance);
-
-        if (isGrounded)
-        {
-            currentJumps = maxJumps;
-        }
-
-        if (Input.GetKeyDown(KeyCode.Space) && currentJumps > 0 && !isCrouching)
-        {
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
-            currentJumps--;
-        }
-
         isCrouching = Input.GetKey(KeyCode.LeftControl);
         UpdateCrouchCollider();
+        isGrounded = CheckGrounded();
+
+        // Прыжок разрешен только с земли, чтобы игрок не мог улетать повторными прыжками в воздухе.
+        if (Input.GetKeyDown(KeyCode.W) && isGrounded && !isCrouching)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+        }
 
         if (Input.GetKey(KeyCode.D)) transform.localScale = new Vector3(1, 1, 1);
         if (Input.GetKey(KeyCode.A)) transform.localScale = new Vector3(-1, 1, 1);
+    }
+
+    bool CheckGrounded()
+    {
+        Bounds bounds = col.bounds;
+        float inset = Mathf.Min(bounds.extents.x * 0.5f, 0.1f);
+        float startY = bounds.min.y - 0.01f;
+
+        return IsGroundBelow(new Vector2(bounds.min.x + inset, startY)) ||
+               IsGroundBelow(new Vector2(bounds.center.x, startY)) ||
+               IsGroundBelow(new Vector2(bounds.max.x - inset, startY));
+    }
+
+    bool IsGroundBelow(Vector2 origin)
+    {
+        RaycastHit2D[] hits = Physics2D.RaycastAll(origin, Vector2.down, groundCheckDistance);
+        foreach (RaycastHit2D hit in hits)
+        {
+            if (hit.collider != null && hit.collider != col && !hit.collider.isTrigger)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     void FixedUpdate()

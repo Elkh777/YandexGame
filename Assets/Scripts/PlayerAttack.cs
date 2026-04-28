@@ -12,7 +12,6 @@ public class PlayerAttack : MonoBehaviour
     public float meleeRange = 1.2f;
 
     private float nextFireTime = 0f;
-    private bool isRangedMode = true;
 
     void Start()
     {
@@ -26,16 +25,9 @@ public class PlayerAttack : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(1))
+        if (Input.GetKey(KeyCode.Space) && Time.time >= nextFireTime)
         {
-            isRangedMode = !isRangedMode;
-            Debug.Log("Режим: " + (isRangedMode ? "🔫 Дальний" : "🗡️ Ближний"));
-        }
-
-        if (Input.GetMouseButton(0) && Time.time >= nextFireTime)
-        {
-            if (isRangedMode) Shoot();
-            else MeleeAttack();
+            Shoot();
             nextFireTime = Time.time + fireRate;
         }
     }
@@ -49,6 +41,13 @@ public class PlayerAttack : MonoBehaviour
         }
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
         Bullet bulletScript = bullet.GetComponent<Bullet>();
+        if (bulletScript == null)
+        {
+            Debug.LogWarning("На префабе пули нет скрипта Bullet!");
+            Destroy(bullet);
+            return;
+        }
+
         Vector2 shootDir = transform.localScale.x > 0 ? Vector2.right : Vector2.left;
         bulletScript.SetDirection(shootDir);
     }
