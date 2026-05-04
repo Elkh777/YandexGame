@@ -50,6 +50,7 @@ public class GameManager : MonoBehaviour
         _score = 0;
 
         EnsureRuntimeUI();
+        EnsureRuntimeSystems();
 
         if (gameOverPanel != null)
         {
@@ -198,6 +199,21 @@ public class GameManager : MonoBehaviour
         if (_resultPanel == null)
         {
             CreateResultPanel(canvas.transform);
+        }
+    }
+
+    private void EnsureRuntimeSystems()
+    {
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null && mainCamera.GetComponent<CameraFollow>() == null)
+        {
+            mainCamera.gameObject.AddComponent<CameraFollow>();
+        }
+
+        if (FindFirstObjectByType<EnemySpawner>() == null)
+        {
+            GameObject spawnerObject = new GameObject("EnemySpawner");
+            spawnerObject.AddComponent<EnemySpawner>();
         }
     }
 
