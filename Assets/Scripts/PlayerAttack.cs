@@ -5,30 +5,56 @@ public class PlayerAttack : MonoBehaviour
     [Header("Атака")]
     public GameObject bulletPrefab;
     public Transform firePoint;
+    public Vector2 firePointOffset = new Vector2(0.78f, 0.15f);
     public float fireRate = 0.5f;
 
     [Header("Ближний бой")]
     public int meleeDamage = 2;
     public float meleeRange = 1.2f;
+    public float meleeCooldown = 0.35f;
 
     private float nextFireTime = 0f;
+    private float nextMeleeTime = 0f;
+    private PlayerVisualController visualController;
+    private Sprite muzzleFlashSprite;
 
     void Start()
     {
+        visualController = GetComponent<PlayerVisualController>();
+        if (visualController == null)
+        {
+            visualController = gameObject.AddComponent<PlayerVisualController>();
+        }
+
         if (firePoint == null)
         {
             firePoint = new GameObject("FirePoint").transform;
             firePoint.SetParent(transform);
-            firePoint.localPosition = new Vector3(0.5f, 0, 0);
         }
+
+        muzzleFlashSprite = Resources.Load<Sprite>("Sprites/muzzle_flash");
+        UpdateFirePoint();
     }
 
     void Update()
     {
-        if (Input.GetKey(KeyCode.Space) && Time.time >= nextFireTime)
+        if (Time.timeScale <= 0f)
+        {
+            return;
+        }
+
+        UpdateFirePoint();
+
+        if (Input.GetKeyDown(KeyCode.Space) && Time.time >= nextFireTime)
         {
             Shoot();
             nextFireTime = Time.time + fireRate;
+        }
+
+        if (Input.GetKeyDown(KeyCode.Return) && Time.time >= nextMeleeTime)
+        {
+            MeleeAttack();
+            nextMeleeTime = Time.time + meleeCooldown;
         }
     }
 
@@ -49,7 +75,11 @@ public class PlayerAttack : MonoBehaviour
         }
 
         Vector2 shootDir = transform.localScale.x > 0 ? Vector2.right : Vector2.left;
+        bulletScript.targetTag = "Enemy";
+        bulletScript.ignoreTag = "Player";
         bulletScript.SetDirection(shootDir);
+        visualController?.PlayShoot();
+        ShowMuzzleFlash(shootDir);
     }
 
     void MeleeAttack()
@@ -69,5 +99,29 @@ public class PlayerAttack : MonoBehaviour
                 }
             }
         }
+    }
+
+    void UpdateFirePoint()
+    {
+        float direction = transform.localScale.x >= 0f ? 1f : -1f;
+        firePoint.localPosition = new Vector3(Mathf.Abs(firePointOffset.x) * direction, firePointOffset.y, 0f);
+    }
+
+    void ShowMuzzleFlash(Vector2 shootDir)
+    {
+        if (muzzleFlashSprite == null)
+        {
+            return;
+        }
+
+        GameObject flash = new GameObject("MuzzleFlash");
+        flash.transform.position = firePoint.position + (Vector3)(shootDir * 0.18f);
+        flash.transform.localScale = new Vector3(shootDir.x > 0f ? 1f : -1f, 1f, 1f);
+
+        SpriteRenderer flashRenderer = flash.AddComponent<SpriteRenderer>();
+        flashRenderer.sprite = muzzleFlashSprite;
+        flashRenderer.sortingOrder = 5;
+
+        Destroy(flash, 0.08f);
     }
 }
