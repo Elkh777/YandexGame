@@ -138,8 +138,19 @@ public class GameManager : MonoBehaviour
 
     public void ExitGame()
     {
-        Debug.Log("Exit game");
-        Application.Quit();
+        Debug.Log("Exit to main menu");
+        Time.timeScale = 1f;
+        
+        // Если есть MainMenu, возвращаемся в главное меню
+        if (MainMenu.Instance != null)
+        {
+            MainMenu.Instance.ExitToMainMenu();
+        }
+        else
+        {
+            // Иначе просто выходим из приложения
+            Application.Quit();
+        }
     }
 
     private void ShowResultPanel(string title, Color titleColor, bool showStartButton)
