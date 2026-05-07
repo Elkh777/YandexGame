@@ -9,6 +9,8 @@ public class PlayerMovement : MonoBehaviour
     public float jumpForce = 10f;
     public float crouchSpeed = 2f;
     public float groundCheckDistance = 0.1f;
+    public float acceleration = 10f; // Плавное ускорение
+    public float deceleration = 12f; // Плавное замедление
 
     private Rigidbody2D rb;
     private BoxCollider2D col;
@@ -16,6 +18,7 @@ public class PlayerMovement : MonoBehaviour
     private Vector2 originalSize;
     private Vector2 originalOffset;
     private bool isGrounded = false;
+    private float moveInput = 0f;
 
     void Start()
     {
@@ -31,14 +34,20 @@ public class PlayerMovement : MonoBehaviour
         UpdateCrouchCollider();
         isGrounded = CheckGrounded();
 
+        // Получаем ввод для движения
+        moveInput = 0f;
+        if (Input.GetKey(KeyCode.D)) moveInput = 1f;
+        if (Input.GetKey(KeyCode.A)) moveInput = -1f;
+
+        // Поворот персонажа
+        if (moveInput > 0) transform.localScale = new Vector3(1, 1, 1);
+        if (moveInput < 0) transform.localScale = new Vector3(-1, 1, 1);
+
         // Прыжок разрешен только с земли, чтобы игрок не мог улетать повторными прыжками в воздухе.
         if (Input.GetKeyDown(KeyCode.W) && isGrounded && !isCrouching)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
         }
-
-        if (Input.GetKey(KeyCode.D)) transform.localScale = new Vector3(1, 1, 1);
-        if (Input.GetKey(KeyCode.A)) transform.localScale = new Vector3(-1, 1, 1);
     }
 
     bool CheckGrounded()
@@ -68,12 +77,19 @@ public class PlayerMovement : MonoBehaviour
 
     void FixedUpdate()
     {
-        float move = 0f;
-        if (Input.GetKey(KeyCode.D)) move = 1f;
-        if (Input.GetKey(KeyCode.A)) move = -1f;
-
         float currentSpeed = isCrouching ? crouchSpeed : speed;
-        rb.linearVelocity = new Vector2(move * currentSpeed, rb.linearVelocity.y);
+        float targetVelocity = moveInput * currentSpeed;
+        
+        // Плавное изменение скорости
+        float velocityChange = targetVelocity - rb.linearVelocity.x;
+        float accelerationRate = (Mathf.Abs(targetVelocity) > 0.01f) ? acceleration : deceleration;
+        
+        float newVelocityX = rb.linearVelocity.x + velocityChange * accelerationRate * Time.fixedDeltaTime;
+        
+        // Ограничиваем максимальную скорость
+        newVelocityX = Mathf.Clamp(newVelocityX, -currentSpeed, currentSpeed);
+        
+        rb.linearVelocity = new Vector2(newVelocityX, rb.linearVelocity.y);
     }
 
     void UpdateCrouchCollider()

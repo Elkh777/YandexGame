@@ -12,7 +12,8 @@ public class PlayerHealth : MonoBehaviour
     private SpriteRenderer _spriteRenderer;
     private PlayerMovement movement;
     private PlayerAttack attack;
-
+    private float flashUntil; // Для мигания при получении урона
+    
     void Start()
     {
         currentHealth = maxHealth;
@@ -22,6 +23,19 @@ public class PlayerHealth : MonoBehaviour
         
         GameManager.Instance?.UpdateHealthUI();
     }
+    
+    void Update()
+    {
+        // Мигание красным при получении урона
+        if (Time.time < flashUntil)
+        {
+            _spriteRenderer.color = Color.red;
+        }
+        else if (!_isInvincible)
+        {
+            _spriteRenderer.color = Color.white;
+        }
+    }
 
     public void TakeDamage(int amount)
     {
@@ -29,6 +43,9 @@ public class PlayerHealth : MonoBehaviour
         
         currentHealth -= amount;
         Debug.Log($"👤 Урон! Здоровье: {currentHealth}/{maxHealth}");
+        
+        // Мигаем красным
+        flashUntil = Time.time + 0.2f;
         
         StartCoroutine(InvincibilityCoroutine());
         

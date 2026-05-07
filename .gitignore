@@ -1,30 +1,94 @@
-# Unity generated
-[Ll]ibrary/
-[Tt]emp/
-[Oo]bj/
-[Bb]uild/
-[Bb]uilds/
-[Ll]ogs/
-[Uu]ser[Ss]ettings/
-
-# Visual Studio
-.vscode/
-.vs/
-*.csproj
+```
+# Unity-specific ignores
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+*.unityproj
+*.userprefs
 *.sln
-*.suo
-*.user
+*.csproj
+*.pidb
+*.pdb
+*.meta
+*.unitypackage
+[UnityProjectFiles]/*
+!Assets/
+!ProjectSettings/
 
-# OS generated
+# Compiled and build artifacts
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
+*.class
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+target/
+.gradle/
+julia-*/
+zig*/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.~*
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Unity specific
-*.pidb.meta
-*.pdb.meta
-*.mdb.meta
-sysinfo.txt
-*.apk
-*.aab
-*.unitypackage
+# Coverage
+coverage/
+htmlcov/
+.coverage
 
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```
