@@ -29,6 +29,17 @@ public class Enemy : MonoBehaviour
     public float rangedAttackCooldown = 2.2f;
     public float projectileSpeed = 7f;
     private float nextRangedAttackTime = 0f;
+    
+    [Header("Рандомное поведение")]
+    [Range(0f, 1f)] public float randomShootChance = 0.6f; // Шанс выстрела (60%)
+    [Range(0f, 1f)] public float randomMeleeChance = 0.4f; // Шанс ближней атаки (40%)
+    public float meleeAttackCooldown = 1.2f;
+    private float nextMeleeAttackTime = 0f;
+    
+    [Header("UI Здоровья")]
+    public GameObject healthBarPrefab;
+    private GameObject healthBarInstance;
+    private RectTransform healthBarFill;
 
     [Header("Награда")]
     public int scoreReward = 100;
@@ -56,6 +67,70 @@ public class Enemy : MonoBehaviour
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null) player = playerObj.transform;
+        
+        // Создаем полоску здоровья
+        CreateHealthBar();
+    }
+    
+    void CreateHealthBar()
+    {
+        // Находим Canvas или создаем новый
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            GameObject canvasObj = new GameObject("Canvas");
+            canvas = canvasObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasObj.AddComponent<CanvasScaler>();
+            canvasObj.AddComponent<GraphicRaycaster>();
+        }
+        
+        // Создаем объект для health bar над врагом
+        healthBarInstance = new GameObject("EnemyHealthBar");
+        healthBarInstance.transform.SetParent(canvas.transform, false);
+        
+        RectTransform bgRect = healthBarInstance.AddComponent<RectTransform>();
+        bgRect.sizeDelta = new Vector2(60f, 8f);
+        
+        Image bgImage = healthBarInstance.AddComponent<Image>();
+        bgImage.color = new Color(0.3f, 0.3f, 0.3f, 0.8f);
+        
+        // Создаваем заполняющую часть
+        GameObject fillObj = new GameObject("Fill");
+        fillObj.transform.SetParent(healthBarInstance.transform, false);
+        RectTransform fillRect = fillObj.AddComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = new Vector2(1f, 1f);
+        fillRect.pivot = new Vector2(0f, 0.5f);
+        fillRect.sizeDelta = Vector2.zero;
+        
+        Image fillImage = fillObj.AddComponent<Image>();
+        fillImage.color = new Color(0.9f, 0.2f, 0.2f, 1f);
+        
+        healthBarFill = fillRect;
+        
+        UpdateHealthBar();
+        healthBarInstance.SetActive(false);
+    }
+    
+    void UpdateHealthBar()
+    {
+        if (healthBarFill == null) return;
+        
+        float healthPercent = (float)currentHealth / maxHealth;
+        healthBarFill.localScale = new Vector3(healthPercent, 1f, 1f);
+    }
+    
+    void LateUpdate()
+    {
+        // Показываем health bar когда враг получает урон или атакует
+        if (healthBarInstance != null && currentHealth < maxHealth)
+        {
+            healthBarInstance.SetActive(true);
+            // Позиционируем над врагом
+            Vector3 screenPos = Camera.main.WorldToScreenPoint(transform.position + Vector3.up * 1.5f);
+            healthBarInstance.transform.position = screenPos;
+        }
     }
 
     void CreatePoint(ref Transform point, Vector3 offset)
@@ -131,16 +206,48 @@ public class Enemy : MonoBehaviour
 
         if (distanceToPlayer <= attackRange && verticalDifference < 0.6f)
         {
-            if (Time.time >= nextAttackTime)
+            // Решаем случайно: ближняя атака или выстрел
+            if (Time.time >= nextAttackTime && Time.time >= nextMeleeAttackTime)
             {
-                PlayerHealth pScript = player.GetComponent<PlayerHealth>();
-                if (pScript != null) pScript.TakeDamage(attackDamage);
-                nextAttackTime = Time.time + attackCooldown;
+                float randomChoice = Random.value;
+                
+                if (randomChoice < randomMeleeChance)
+                {
+                    // Ближняя атака
+                    PerformMeleeAttack();
+                }
+                else if (randomChoice < randomMeleeChance + randomShootChance && Time.time >= nextRangedAttackTime)
+                {
+                    // Дальняя атака
+                    TryRangedAttack();
+                }
             }
         }
         else if (distanceToPlayer <= rangedAttackRange && verticalDifference < 1.6f)
         {
-            TryRangedAttack();
+            // Случайный выстрел с шансом
+            if (Time.time >= nextRangedAttackTime && Random.value < randomShootChance)
+            {
+                TryRangedAttack();
+            }
+        }
+    }
+    
+    void PerformMeleeAttack()
+    {
+        PlayerHealth pScript = player.GetComponent<PlayerHealth>();
+        if (pScript != null)
+        {
+            pScript.TakeDamage(attackDamage);
+        }
+        nextAttackTime = Time.time + attackCooldown;
+        nextMeleeAttackTime = Time.time + meleeAttackCooldown;
+        
+        // Анимация атаки (визуальный эффект)
+        EnemyVisualController evc = GetComponent<EnemyVisualController>();
+        if (evc != null)
+        {
+            evc.PlayAttack();
         }
     }
 
@@ -154,6 +261,7 @@ public class Enemy : MonoBehaviour
         if (isDead) return;
         currentHealth -= amount;
         StartCoroutine(FlashEffect());
+        UpdateHealthBar();
         if (currentHealth <= 0) Die();
     }
 
