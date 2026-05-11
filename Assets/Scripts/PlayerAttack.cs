@@ -16,6 +16,7 @@ public class PlayerAttack : MonoBehaviour
     private float nextFireTime = 0f;
     private float nextMeleeTime = 0f;
     private PlayerVisualController visualController;
+    private PlayerMovement playerMovement;
     private Sprite muzzleFlashSprite;
 
     void Start()
@@ -25,6 +26,8 @@ public class PlayerAttack : MonoBehaviour
         {
             visualController = gameObject.AddComponent<PlayerVisualController>();
         }
+
+        playerMovement = GetComponent<PlayerMovement>();
 
         if (firePoint == null)
         {
@@ -45,7 +48,7 @@ public class PlayerAttack : MonoBehaviour
 
         UpdateFirePoint();
 
-        if (Input.GetKeyDown(KeyCode.Space) && Time.time >= nextFireTime)
+        if (Input.GetKeyDown(KeyCode.Space) && Time.time >= nextFireTime && Time.timeScale > 0f)
         {
             Shoot();
             nextFireTime = Time.time + fireRate;
@@ -74,7 +77,7 @@ public class PlayerAttack : MonoBehaviour
             return;
         }
 
-        Vector2 shootDir = transform.localScale.x > 0 ? Vector2.right : Vector2.left;
+        Vector2 shootDir = new Vector2(playerMovement.facingDirection, 0f);
         bulletScript.targetTag = "Enemy";
         bulletScript.ignoreTag = "Player";
         bulletScript.SetDirection(shootDir);
@@ -103,7 +106,7 @@ public class PlayerAttack : MonoBehaviour
 
     void UpdateFirePoint()
     {
-        float direction = transform.localScale.x >= 0f ? 1f : -1f;
+        float direction = playerMovement != null ? playerMovement.facingDirection : (transform.localScale.x >= 0f ? 1f : -1f);
         firePoint.localPosition = new Vector3(Mathf.Abs(firePointOffset.x) * direction, firePointOffset.y, 0f);
     }
 

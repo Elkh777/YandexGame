@@ -23,13 +23,17 @@ public class Bullet : MonoBehaviour
     void Start()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
+        if (_direction != Vector2.zero)
+        {
+            transform.right = _direction;
+        }
         SetupVisual();
         Destroy(gameObject, lifetime);
     }
 
     void Update()
     {
-        transform.Translate(_direction * speed * Time.deltaTime);
+        transform.Translate(_direction * speed * Time.deltaTime, Space.World);
     }
 
     void OnTriggerEnter2D(Collider2D other)

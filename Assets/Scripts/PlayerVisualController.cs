@@ -10,20 +10,24 @@ public class PlayerVisualController : MonoBehaviour
     private Sprite idleSprite;
     private Sprite shootSprite;
     private Sprite[] runSprites;
+    private Sprite jumpSprite;
     private float shootUntil;
+    private PlayerMovement playerMovement;
 
     void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         rb = GetComponent<Rigidbody2D>();
+        playerMovement = GetComponent<PlayerMovement>();
 
-        idleSprite = Resources.Load<Sprite>("Sprites/player_idle");
+        idleSprite = Resources.Load<Sprite>("Sprites/anim/0");
         shootSprite = Resources.Load<Sprite>("Sprites/player_shoot");
         runSprites = new Sprite[8];
         for (int i = 0; i < runSprites.Length; i++)
         {
-            runSprites[i] = Resources.Load<Sprite>($"Sprites/player_run_{i}");
+            runSprites[i] = Resources.Load<Sprite>($"Sprites/anim/{i + 1}");
         }
+        jumpSprite = Resources.Load<Sprite>("Sprites/anim/3");
 
         if (spriteRenderer != null)
         {
@@ -48,6 +52,14 @@ public class PlayerVisualController : MonoBehaviour
             return;
         }
 
+        bool isGrounded = playerMovement != null ? playerMovement.isGrounded : CheckGrounded();
+
+        if (!isGrounded && jumpSprite != null)
+        {
+            spriteRenderer.sprite = jumpSprite;
+            return;
+        }
+
         if (Mathf.Abs(rb.linearVelocity.x) > 0.08f && HasRunSprites())
         {
             int frame = Mathf.FloorToInt(Time.time * runFrameRate) % runSprites.Length;
@@ -59,6 +71,11 @@ public class PlayerVisualController : MonoBehaviour
         {
             spriteRenderer.sprite = idleSprite;
         }
+    }
+
+    private bool CheckGrounded()
+    {
+        return Mathf.Abs(rb.linearVelocity.y) < 0.1f;
     }
 
     public void PlayShoot()

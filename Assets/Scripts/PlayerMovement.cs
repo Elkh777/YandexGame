@@ -9,13 +9,15 @@ public class PlayerMovement : MonoBehaviour
     public float jumpForce = 10f;
     public float crouchSpeed = 2f;
     public float groundCheckDistance = 0.1f;
+    public Vector3 playerScale = new Vector3(0.3f, 0.3f, 0.3f);
 
     private Rigidbody2D rb;
     private BoxCollider2D col;
     private bool isCrouching = false;
     private Vector2 originalSize;
     private Vector2 originalOffset;
-    private bool isGrounded = false;
+    public int facingDirection { get; private set; } = 1;
+    public bool isGrounded { get; private set; } = false;
 
     void Start()
     {
@@ -23,6 +25,7 @@ public class PlayerMovement : MonoBehaviour
         col = GetComponent<BoxCollider2D>();
         originalSize = col.size;
         originalOffset = col.offset;
+        transform.localScale = playerScale;
     }
 
     void Update()
@@ -37,8 +40,8 @@ public class PlayerMovement : MonoBehaviour
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
         }
 
-        if (Input.GetKey(KeyCode.D)) transform.localScale = new Vector3(1, 1, 1);
-        if (Input.GetKey(KeyCode.A)) transform.localScale = new Vector3(-1, 1, 1);
+        if (Input.GetKey(KeyCode.D)) { transform.localScale = new Vector3(playerScale.x, playerScale.y, playerScale.z); facingDirection = 1; }
+        if (Input.GetKey(KeyCode.A)) { transform.localScale = new Vector3(-playerScale.x, playerScale.y, playerScale.z); facingDirection = -1; }
     }
 
     bool CheckGrounded()
