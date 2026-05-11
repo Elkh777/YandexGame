@@ -24,6 +24,15 @@ public class Enemy : MonoBehaviour
     public float attackCooldown = 1.5f;
     private float nextAttackTime = 0f;
 
+    [Header("Дальний бой")]
+    public float rangedAttackRange = 6f;
+    public float rangedAttackCooldown = 2.2f;
+    public float projectileSpeed = 7f;
+    private float nextRangedAttackTime = 0f;
+
+    [Header("Награда")]
+    public int scoreReward = 100;
+
     private Transform player;
     private bool isChasing = false;
     private bool isDead = false;
@@ -35,6 +44,10 @@ public class Enemy : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         currentHealth = maxHealth;
         spriteRenderer = GetComponent<SpriteRenderer>();
+        if (GetComponent<EnemyVisualController>() == null)
+        {
+            gameObject.AddComponent<EnemyVisualController>();
+        }
 
         if (pointA == null) CreatePoint(ref pointA, Vector3.left * 3);
         if (pointB == null) CreatePoint(ref pointB, Vector3.right * 3);
@@ -61,6 +74,8 @@ public class Enemy : MonoBehaviour
     // Движение перенесено в FixedUpdate для корректной физики
     void FixedUpdate()
     {
+        if (isDead) return;
+
         if (isChasing) ChasePlayer();
         else Patrol();
     }
@@ -123,6 +138,10 @@ public class Enemy : MonoBehaviour
                 nextAttackTime = Time.time + attackCooldown;
             }
         }
+        else if (distanceToPlayer <= rangedAttackRange && verticalDifference < 1.6f)
+        {
+            TryRangedAttack();
+        }
     }
 
     void FlipSprite(bool faceRight)
@@ -150,8 +169,45 @@ public class Enemy : MonoBehaviour
     {
         isDead = true;
         Debug.Log("💀 Враг уничтожен!");
-        spriteRenderer.color = Color.gray;
+        GameManager.Instance?.AddScore(scoreReward);
+        if (spriteRenderer != null) spriteRenderer.color = Color.gray;
+        Collider2D enemyCollider = GetComponent<Collider2D>();
+        if (enemyCollider != null) enemyCollider.enabled = false;
+        if (rb != null) rb.linearVelocity = Vector2.zero;
         Destroy(gameObject, 0.5f);
+    }
+
+    void TryRangedAttack()
+    {
+        if (Time.time < nextRangedAttackTime)
+        {
+            return;
+        }
+
+        Vector2 shootDir = player.position.x >= transform.position.x ? Vector2.right : Vector2.left;
+        GameObject projectile = new GameObject("EnemyProjectile");
+        projectile.transform.position = transform.position + (Vector3)(shootDir * 0.65f) + Vector3.up * 0.1f;
+
+        SpriteRenderer projectileRenderer = projectile.AddComponent<SpriteRenderer>();
+        projectileRenderer.sortingOrder = 4;
+
+        Rigidbody2D projectileBody = projectile.AddComponent<Rigidbody2D>();
+        projectileBody.bodyType = RigidbodyType2D.Kinematic;
+        projectileBody.gravityScale = 0f;
+
+        CircleCollider2D projectileCollider = projectile.AddComponent<CircleCollider2D>();
+        projectileCollider.isTrigger = true;
+        projectileCollider.radius = 0.18f;
+
+        Bullet projectileScript = projectile.AddComponent<Bullet>();
+        projectileScript.targetTag = "Player";
+        projectileScript.ignoreTag = "Enemy";
+        projectileScript.damage = attackDamage;
+        projectileScript.speed = projectileSpeed;
+        projectileScript.lifetime = 4f;
+        projectileScript.SetDirection(shootDir);
+
+        nextRangedAttackTime = Time.time + rangedAttackCooldown;
     }
 
     void OnDrawGizmosSelected()
