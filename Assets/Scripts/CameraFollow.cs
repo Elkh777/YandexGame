@@ -4,7 +4,11 @@ public class CameraFollow : MonoBehaviour
 {
     public Transform target;
     public Vector3 offset = new Vector3(0f, 1.2f, -10f);
-    public float smoothTime = 0.18f;
+
+    [Header("Плавность")]
+    [Range(0.05f, 0.4f)] public float smoothTime = 0.2f; // 0.2 = золотая середина
+
+    [Header("Ограничения")]
     public float minX = -4f;
     public float maxX = 105f;
     public float minY = -2f;
@@ -12,19 +16,28 @@ public class CameraFollow : MonoBehaviour
 
     private Vector3 velocity;
 
-    void LateUpdate()
+    void Start()
     {
         if (target == null)
         {
             GameObject player = GameObject.FindGameObjectWithTag("Player");
-            if (player != null)
-            {
-                target = player.transform;
-            }
-            else
-            {
-                return;
-            }
+            if (player != null) target = player.transform;
+        }
+
+        // Плавно ставим камеру на стартовую позицию, чтобы не было первого прыжка
+        if (target != null)
+        {
+            transform.position = target.position + offset;
+            velocity = Vector3.zero;
+        }
+    }
+
+    void LateUpdate()
+    {
+        if (target == null)
+        {
+            target = GameObject.FindGameObjectWithTag("Player")?.transform;
+            if (target == null) return;
         }
 
         Vector3 desiredPosition = target.position + offset;
@@ -32,6 +45,7 @@ public class CameraFollow : MonoBehaviour
         desiredPosition.y = Mathf.Clamp(desiredPosition.y, minY, maxY);
         desiredPosition.z = offset.z;
 
+        // SmoothDamp учитывает Time.deltaTime автоматически
         transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref velocity, smoothTime);
     }
 }

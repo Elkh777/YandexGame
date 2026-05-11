@@ -3,7 +3,7 @@ using UnityEngine;
 public class Bullet : MonoBehaviour
 {
     public float speed = 15f;
-    public int damage = 1;          // Урон пули (можно менять в инспекторе)
+    public int damage = 1;
     public float lifetime = 3f;
     public string targetTag = "Enemy";
     public string ignoreTag = "Player";
@@ -14,10 +14,6 @@ public class Bullet : MonoBehaviour
     public void SetDirection(Vector2 dir)
     {
         _direction = dir.normalized;
-        if (_direction != Vector2.zero)
-        {
-            transform.right = _direction;
-        }
     }
 
     void Start()
@@ -29,7 +25,8 @@ public class Bullet : MonoBehaviour
 
     void Update()
     {
-        transform.Translate(_direction * speed * Time.deltaTime);
+        // 🔑 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Space.World гарантирует полёт по глобальной оси
+        transform.Translate(_direction * speed * Time.deltaTime, Space.World);
     }
 
     void OnTriggerEnter2D(Collider2D other)
@@ -41,14 +38,8 @@ public class Bullet : MonoBehaviour
 
         if (other.CompareTag("Enemy") && targetTag == "Enemy")
         {
-            Debug.Log("💥 Попадание! Урон: " + damage);
-
             Enemy enemy = other.GetComponent<Enemy>();
-            if (enemy != null)
-            {
-                enemy.TakeDamage(damage);
-            }
-
+            if (enemy != null) enemy.TakeDamage(damage);
             Destroy(gameObject);
             return;
         }
@@ -56,11 +47,7 @@ public class Bullet : MonoBehaviour
         if (other.CompareTag("Player") && targetTag == "Player")
         {
             PlayerHealth player = other.GetComponent<PlayerHealth>();
-            if (player != null)
-            {
-                player.TakeDamage(damage);
-            }
-
+            if (player != null) player.TakeDamage(damage);
             Destroy(gameObject);
             return;
         }
@@ -70,18 +57,10 @@ public class Bullet : MonoBehaviour
 
     void SetupVisual()
     {
-        if (spriteRenderer == null)
-        {
-            return;
-        }
-
+        if (spriteRenderer == null) return;
         string spritePath = targetTag == "Player" ? "Sprites/enemy_projectile" : "Sprites/projectile_dagger";
         Sprite projectileSprite = Resources.Load<Sprite>(spritePath);
-        if (projectileSprite != null)
-        {
-            spriteRenderer.sprite = projectileSprite;
-        }
-
+        if (projectileSprite != null) spriteRenderer.sprite = projectileSprite;
         spriteRenderer.color = Color.white;
         transform.localScale = Vector3.one;
     }

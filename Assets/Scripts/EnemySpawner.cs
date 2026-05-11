@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class EnemySpawner : MonoBehaviour
 {
@@ -9,6 +9,9 @@ public class EnemySpawner : MonoBehaviour
     public float spawnAheadMax = 24f;
     public float minSpawnX = 8f;
     public float maxSpawnX = 105f;
+
+    [Header("🌍 Уровень")]
+    [Tooltip("Y-координата ЗЕМЛИ (где должны стоять ноги врага)")]
     public float groundY = -3f;
 
     private Transform player;
@@ -22,10 +25,7 @@ public class EnemySpawner : MonoBehaviour
 
     void Update()
     {
-        if (Time.timeScale <= 0f)
-        {
-            return;
-        }
+        if (Time.timeScale <= 0f) return;
 
         if (player == null)
         {
@@ -50,7 +50,12 @@ public class EnemySpawner : MonoBehaviour
 
         GameObject enemyObject = new GameObject("Enemy");
         enemyObject.tag = "Enemy";
-        enemyObject.transform.position = new Vector3(spawnX, groundY + 1f, 0f);
+
+        // 🔑 ИСПРАВЛЕНИЕ: Спавним врага так, чтобы его НИЗ был на groundY
+        // Высота коллайдера = 1.1f, значит центр должен быть на groundY + 0.55f
+        float colliderHalfHeight = 0.55f;
+        float spawnY = groundY + colliderHalfHeight;
+        enemyObject.transform.position = new Vector3(spawnX, spawnY, 0f);
 
         SpriteRenderer renderer = enemyObject.AddComponent<SpriteRenderer>();
         renderer.sortingOrder = 1;
@@ -61,6 +66,8 @@ public class EnemySpawner : MonoBehaviour
         Rigidbody2D body = enemyObject.AddComponent<Rigidbody2D>();
         body.gravityScale = 3f;
         body.constraints = RigidbodyConstraints2D.FreezeRotation;
+        // 🔑 Включаем интерполяцию для плавности
+        body.interpolation = RigidbodyInterpolation2D.Interpolate;
 
         Enemy enemy = enemyObject.AddComponent<Enemy>();
         enemy.maxHealth = 3;

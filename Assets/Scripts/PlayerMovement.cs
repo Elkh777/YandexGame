@@ -16,6 +16,7 @@ public class PlayerMovement : MonoBehaviour
     private Vector2 originalSize;
     private Vector2 originalOffset;
     private bool isGrounded = false;
+    private float horizontalInput = 0f;
 
     void Start()
     {
@@ -23,6 +24,12 @@ public class PlayerMovement : MonoBehaviour
         col = GetComponent<BoxCollider2D>();
         originalSize = col.size;
         originalOffset = col.offset;
+
+        // 🔑 КРИТИЧЕСКИ ВАЖНО: Включаем интерполяцию для сглаживания между кадрами физики
+        if (rb.interpolation != RigidbodyInterpolation2D.Interpolate)
+        {
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+        }
     }
 
     void Update()
@@ -31,14 +38,29 @@ public class PlayerMovement : MonoBehaviour
         UpdateCrouchCollider();
         isGrounded = CheckGrounded();
 
-        // Прыжок разрешен только с земли, чтобы игрок не мог улетать повторными прыжками в воздухе.
+        // Считываем ввод в Update (стандарт Unity)
+        horizontalInput = 0f;
+        if (Input.GetKey(KeyCode.D)) horizontalInput = 1f;
+        if (Input.GetKey(KeyCode.A)) horizontalInput = -1f;
+
+        // Разворот только при реальном движении
+        if (horizontalInput != 0)
+        {
+            transform.localScale = new Vector3(Mathf.Sign(horizontalInput), 1, 1);
+        }
+
+        // Прыжок
         if (Input.GetKeyDown(KeyCode.W) && isGrounded && !isCrouching)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
         }
+    }
 
-        if (Input.GetKey(KeyCode.D)) transform.localScale = new Vector3(1, 1, 1);
-        if (Input.GetKey(KeyCode.A)) transform.localScale = new Vector3(-1, 1, 1);
+    void FixedUpdate()
+    {
+        float currentSpeed = isCrouching ? crouchSpeed : speed;
+        // Применяем скорость только по X, ось Y оставляем для гравитации/прыжков
+        rb.linearVelocity = new Vector2(horizontalInput * currentSpeed, rb.linearVelocity.y);
     }
 
     bool CheckGrounded()
@@ -62,18 +84,7 @@ public class PlayerMovement : MonoBehaviour
                 return true;
             }
         }
-
         return false;
-    }
-
-    void FixedUpdate()
-    {
-        float move = 0f;
-        if (Input.GetKey(KeyCode.D)) move = 1f;
-        if (Input.GetKey(KeyCode.A)) move = -1f;
-
-        float currentSpeed = isCrouching ? crouchSpeed : speed;
-        rb.linearVelocity = new Vector2(move * currentSpeed, rb.linearVelocity.y);
     }
 
     void UpdateCrouchCollider()

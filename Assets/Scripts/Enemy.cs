@@ -1,11 +1,9 @@
 using UnityEngine;
-
 public class Enemy : MonoBehaviour
 {
     [Header("❤️ Здоровье")]
     public int maxHealth = 3;
     private int currentHealth;
-
     [Header("👁️ Обнаружение")]
     public float detectionRange = 5f;
     public LayerMask obstacleLayer;
@@ -37,7 +35,7 @@ public class Enemy : MonoBehaviour
     private bool isChasing = false;
     private bool isDead = false;
     private SpriteRenderer spriteRenderer;
-    private Rigidbody2D rb; // Ссылка на физику
+    private Rigidbody2D rb;
 
     void Start()
     {
@@ -51,7 +49,7 @@ public class Enemy : MonoBehaviour
 
         if (pointA == null) CreatePoint(ref pointA, Vector3.left * 3);
         if (pointB == null) CreatePoint(ref pointB, Vector3.right * 3);
-        
+
         currentTarget = pointB;
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -71,7 +69,6 @@ public class Enemy : MonoBehaviour
         CheckPlayerDetection();
     }
 
-    // Движение перенесено в FixedUpdate для корректной физики
     void FixedUpdate()
     {
         if (isDead) return;
@@ -108,7 +105,6 @@ public class Enemy : MonoBehaviour
         float dir = currentTarget.position.x - transform.position.x;
         float moveX = Mathf.Sign(dir) * patrolSpeed;
 
-        // Двигаем только по оси X. Ось Y управляется гравитацией автоматически!
         rb.linearVelocity = new Vector2(moveX, rb.linearVelocity.y);
 
         if (Mathf.Abs(dir) < 0.1f)
@@ -165,16 +161,24 @@ public class Enemy : MonoBehaviour
         spriteRenderer.color = original;
     }
 
+    // 🔥 ОБНОВЛЁННЫЙ МЕТОД СМЕРТИ С КРОВАВЫМ ВЗРЫВОМ
     void Die()
     {
         isDead = true;
+
+        // 🔥 Красивый кровавый взрыв
+        BloodExplosionEffect.Spawn(transform.position);
+
         Debug.Log("💀 Враг уничтожен!");
         GameManager.Instance?.AddScore(scoreReward);
-        if (spriteRenderer != null) spriteRenderer.color = Color.gray;
+
+        if (spriteRenderer != null) spriteRenderer.enabled = false;
+
         Collider2D enemyCollider = GetComponent<Collider2D>();
         if (enemyCollider != null) enemyCollider.enabled = false;
         if (rb != null) rb.linearVelocity = Vector2.zero;
-        Destroy(gameObject, 0.5f);
+
+        Destroy(gameObject, 0.1f);
     }
 
     void TryRangedAttack()
