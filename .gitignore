@@ -10,8 +10,8 @@
 # Visual Studio
 .vscode/
 .vs/
-*.csproj
-*.sln
+# *.csproj
+# *.sln
 *.suo
 *.user
 
@@ -28,3 +28,9 @@ sysinfo.txt
 *.aab
 *.unitypackage
 
+# JetBrains Rider / IntelliJ (добавлено)
+.idea/
+*.iml
+
+# Logs (добавлено)
+*.log
