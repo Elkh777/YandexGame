@@ -26,6 +26,7 @@ public class GameManager : MonoBehaviour
     private TextMeshProUGUI _pauseButtonText;
     private TextMeshProUGUI _resultTitleText;
     private GameObject _resultPanel;
+    private GameObject _pausePanel;
     private Button _startButton;
     private Button _runtimeRestartButton;
     private Button _exitButton;
@@ -77,6 +78,12 @@ public class GameManager : MonoBehaviour
     {
         if (_isGameOver || _isGameWon) return;
         _isGameOver = true;
+
+        if (_pausePanel != null)
+        {
+            _pausePanel.SetActive(false);
+        }
+
         ShowResultPanel("GAME OVER", new Color(0.9f, 0.08f, 0.08f), false);
         Debug.Log("GAME OVER!");
     }
@@ -117,6 +124,12 @@ public class GameManager : MonoBehaviour
     {
         if (_isGameWon || _isGameOver) return;
         _isGameWon = true;
+
+        if (_pausePanel != null)
+        {
+            _pausePanel.SetActive(false);
+        }
+
         ShowResultPanel("GAME WIN", new Color(0.25f, 0.95f, 0.35f), true);
         Debug.Log("GAME WIN!");
     }
@@ -127,6 +140,25 @@ public class GameManager : MonoBehaviour
 
         _isPaused = !_isPaused;
         Time.timeScale = _isPaused ? 0f : 1f;
+
+        if (_pausePanel != null)
+        {
+            _pausePanel.SetActive(_isPaused);
+        }
+
+        UpdatePauseButtonText();
+    }
+
+    public void ContinueGame()
+    {
+        _isPaused = false;
+        Time.timeScale = 1f;
+
+        if (_pausePanel != null)
+        {
+            _pausePanel.SetActive(false);
+        }
+
         UpdatePauseButtonText();
     }
 
@@ -138,8 +170,8 @@ public class GameManager : MonoBehaviour
 
     public void ExitGame()
     {
-        Debug.Log("Exit game");
-        Application.Quit();
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("Assets/Scenes/MenuScene.unity");
     }
 
     private void ShowResultPanel(string title, Color titleColor, bool showStartButton)
@@ -200,6 +232,11 @@ public class GameManager : MonoBehaviour
         {
             CreateResultPanel(canvas.transform);
         }
+
+        if (_pausePanel == null)
+        {
+            CreatePausePanel(canvas.transform);
+        }
     }
 
     private void EnsureRuntimeSystems()
@@ -248,6 +285,34 @@ public class GameManager : MonoBehaviour
         _exitButton.onClick.AddListener(ExitGame);
 
         _resultPanel.SetActive(false);
+    }
+
+    private void CreatePausePanel(Transform parent)
+    {
+        _pausePanel = new GameObject("PausePanel");
+        _pausePanel.transform.SetParent(parent, false);
+
+        RectTransform panelRect = _pausePanel.AddComponent<RectTransform>();
+        panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRect.anchoredPosition = Vector2.zero;
+        panelRect.sizeDelta = new Vector2(760f, 430f);
+
+        Image panelImage = _pausePanel.AddComponent<Image>();
+        panelImage.color = new Color(0.06f, 0.02f, 0.025f, 0.94f);
+
+        CreateText("PauseTitle", _pausePanel.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+            new Vector2(0f, -92f), new Vector2(700f, 140f), "PAUSE", 86, Color.yellow).fontStyle = FontStyles.Bold;
+
+        Button continueButton = CreateButton("ContinueButton", _pausePanel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(-180f, 90f), new Vector2(200f, 72f), "CONTINUE", new Color(0.1f, 0.72f, 0.22f));
+        continueButton.onClick.AddListener(ContinueGame);
+
+        Button exitPauseButton = CreateButton("ExitPauseButton", _pausePanel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(180f, 90f), new Vector2(180f, 72f), "EXIT", new Color(0.88f, 0.1f, 0.08f));
+        exitPauseButton.onClick.AddListener(ExitGame);
+
+        _pausePanel.SetActive(false);
     }
 
     private Button CreateButton(string name, Transform parent, Vector2 anchorMin, Vector2 anchorMax,

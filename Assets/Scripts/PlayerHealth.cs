@@ -28,7 +28,7 @@ public class PlayerHealth : MonoBehaviour
         if (_isInvincible || currentHealth <= 0) return;
         
         currentHealth -= amount;
-        Debug.Log($"👤 Урон! Здоровье: {currentHealth}/{maxHealth}");
+        Debug.Log($"👤 Урон! Здоровье: {currentHealth}/{maxHealth} | Источник урона: {new System.Diagnostics.StackTrace()}");
         
         StartCoroutine(InvincibilityCoroutine());
         
