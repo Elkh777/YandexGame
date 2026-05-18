@@ -3,9 +3,9 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class GameManager : MonoBehaviour
+public class fGameManager : MonoBehaviour
 {
-    public static GameManager Instance { get; private set; }
+    public static fGameManager Instance { get; private set; }
 
     [Header("UI")]
     public GameObject gameOverPanel;
@@ -130,7 +130,7 @@ public class GameManager : MonoBehaviour
             _pausePanel.SetActive(false);
         }
 
-        ShowResultPanel("GAME WIN", new Color(0.25f, 0.95f, 0.35f), true);
+        ShowResultPanel("GAME WIN", Color.white, true);
         Debug.Log("GAME WIN!");
     }
 
@@ -222,10 +222,34 @@ public class GameManager : MonoBehaviour
 
         if (_pauseButtonText == null)
         {
-            Button pauseButton = CreateButton("PauseButton", canvas.transform, new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-150f, -74f), new Vector2(180f, 64f), "PAUSE", new Color(1f, 0.63f, 0.1f));
-            pauseButton.onClick.AddListener(TogglePause);
-            _pauseButtonText = pauseButton.GetComponentInChildren<TextMeshProUGUI>();
+            GameObject pauseButtonObj = new GameObject("PauseButton");
+            pauseButtonObj.transform.SetParent(canvas.transform, false);
+
+            RectTransform rect = pauseButtonObj.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.anchoredPosition = new Vector2(-150f, -74f);
+            rect.sizeDelta = new Vector2(180f, 64f);
+
+            Image image = pauseButtonObj.AddComponent<Image>();
+image.sprite = Resources.Load<Sprite>("Sprites/Prefabs/buttonManager");
+
+            Button button = pauseButtonObj.AddComponent<Button>();
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(0.9f, 0.9f, 0.9f);
+            colors.pressedColor = new Color(0.7f, 0.7f, 0.7f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+            button.onClick.AddListener(TogglePause);
+
+            pauseButtonObj.AddComponent<UIJuicyButton>();
+
+            _pauseButtonText = CreateText("Text", pauseButtonObj.transform, Vector2.zero, Vector2.one,
+                Vector2.zero, Vector2.zero, "PAUSE", 34, Color.white);
+            _pauseButtonText.fontStyle = FontStyles.Bold;
         }
 
         if (_resultPanel == null)
@@ -269,19 +293,19 @@ public class GameManager : MonoBehaviour
         panelImage.color = new Color(0.06f, 0.02f, 0.025f, 0.94f);
 
         _resultTitleText = CreateText("ResultTitle", _resultPanel.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -92f), new Vector2(700f, 140f), "GAME OVER", 86, Color.red);
+            new Vector2(0f, -92f), new Vector2(700f, 140f), "GAME OVER", 86, Color.white);
         _resultTitleText.fontStyle = FontStyles.Bold;
 
-        _startButton = CreateButton("StartButton", _resultPanel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(-230f, 90f), new Vector2(190f, 72f), "START", new Color(0.1f, 0.72f, 0.22f));
+        _startButton = CreatePauseMenuButton("StartButton", _resultPanel.transform, new Vector2(0.5f, 0f),
+            new Vector2(-230f, 90f), new Vector2(190f, 72f), "START");
         _startButton.onClick.AddListener(RestartGame);
 
-        _runtimeRestartButton = CreateButton("RestartButton", _resultPanel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 90f), new Vector2(220f, 72f), "RESTART", new Color(1f, 0.63f, 0.1f));
+        _runtimeRestartButton = CreatePauseMenuButton("RestartButton", _resultPanel.transform, new Vector2(0.5f, 0f),
+            new Vector2(0f, 90f), new Vector2(220f, 72f), "RESTART");
         _runtimeRestartButton.onClick.AddListener(RestartGame);
 
-        _exitButton = CreateButton("ExitButton", _resultPanel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(240f, 90f), new Vector2(180f, 72f), "EXIT", new Color(0.88f, 0.1f, 0.08f));
+        _exitButton = CreatePauseMenuButton("ExitButton", _resultPanel.transform, new Vector2(0.5f, 0f),
+            new Vector2(240f, 90f), new Vector2(180f, 72f), "EXIT");
         _exitButton.onClick.AddListener(ExitGame);
 
         _resultPanel.SetActive(false);
@@ -302,15 +326,13 @@ public class GameManager : MonoBehaviour
         panelImage.color = new Color(0.06f, 0.02f, 0.025f, 0.94f);
 
         CreateText("PauseTitle", _pausePanel.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-            new Vector2(0f, -92f), new Vector2(700f, 140f), "PAUSE", 86, Color.yellow).fontStyle = FontStyles.Bold;
+            new Vector2(0f, -92f), new Vector2(700f, 140f), "PAUSE", 86, Color.white).fontStyle = FontStyles.Bold;
 
-        Button continueButton = CreateButton("ContinueButton", _pausePanel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(-180f, 90f), new Vector2(200f, 72f), "CONTINUE", new Color(0.1f, 0.72f, 0.22f));
-        continueButton.onClick.AddListener(ContinueGame);
+        CreatePauseMenuButton("ContinueButton", _pausePanel.transform, new Vector2(0.5f, 0f),
+            new Vector2(-180f, 90f), new Vector2(200f, 72f), "CONTINUE").onClick.AddListener(ContinueGame);
 
-        Button exitPauseButton = CreateButton("ExitPauseButton", _pausePanel.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(180f, 90f), new Vector2(180f, 72f), "EXIT", new Color(0.88f, 0.1f, 0.08f));
-        exitPauseButton.onClick.AddListener(ExitGame);
+        CreatePauseMenuButton("ExitPauseButton", _pausePanel.transform, new Vector2(0.5f, 0f),
+            new Vector2(180f, 90f), new Vector2(180f, 72f), "EXIT").onClick.AddListener(ExitGame);
 
         _pausePanel.SetActive(false);
     }
@@ -385,5 +407,39 @@ public class GameManager : MonoBehaviour
         {
             _pauseButtonText.text = _isPaused ? "START" : "PAUSE";
         }
+    }
+
+    private Button CreatePauseMenuButton(string name, Transform parent, Vector2 anchorMin,
+        Vector2 anchoredPosition, Vector2 size, string label)
+    {
+        GameObject buttonObj = new GameObject(name);
+        buttonObj.transform.SetParent(parent, false);
+
+        RectTransform rect = buttonObj.AddComponent<RectTransform>();
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMin;
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = size;
+
+        Image image = buttonObj.AddComponent<Image>();
+        image.sprite = Resources.Load<Sprite>("Sprites/Prefabs/stopPicture");
+
+        Button button = buttonObj.AddComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(0.9f, 0.9f, 0.9f);
+        colors.pressedColor = new Color(0.7f, 0.7f, 0.7f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.colorMultiplier = 1f;
+        colors.fadeDuration = 0.08f;
+        button.colors = colors;
+
+        buttonObj.AddComponent<UIJuicyButton>();
+
+        TextMeshProUGUI text = CreateText("Text", buttonObj.transform, Vector2.zero, Vector2.one,
+            Vector2.zero, Vector2.zero, label, 34, Color.white);
+        text.fontStyle = FontStyles.Bold;
+
+        return button;
     }
 }

@@ -20,7 +20,7 @@ public class PlayerHealth : MonoBehaviour
         movement = GetComponent<PlayerMovement>();
         attack = GetComponent<PlayerAttack>();
         
-        GameManager.Instance?.UpdateHealthUI();
+        fGameManager.Instance?.UpdateHealthUI();
     }
 
     public void TakeDamage(int amount)
@@ -36,7 +36,7 @@ public class PlayerHealth : MonoBehaviour
         {
             Die();
         }
-        GameManager.Instance?.UpdateHealthUI();
+        fGameManager.Instance?.UpdateHealthUI();
     }
 
     System.Collections.IEnumerator InvincibilityCoroutine()
@@ -80,6 +80,6 @@ public class PlayerHealth : MonoBehaviour
 
     void ShowGameOver()
     {
-        GameManager.Instance?.ShowGameOver();
+        fGameManager.Instance?.ShowGameOver();
     }
 }

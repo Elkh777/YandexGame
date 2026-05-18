@@ -169,7 +169,7 @@ public class Enemy : MonoBehaviour
     {
         isDead = true;
         Debug.Log("💀 Враг уничтожен!");
-        GameManager.Instance?.AddScore(scoreReward);
+        fGameManager.Instance?.AddScore(scoreReward);
         if (spriteRenderer != null) spriteRenderer.color = Color.gray;
         Collider2D enemyCollider = GetComponent<Collider2D>();
         if (enemyCollider != null) enemyCollider.enabled = false;
