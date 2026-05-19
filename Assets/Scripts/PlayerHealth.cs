@@ -1,50 +1,85 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class PlayerHealth : MonoBehaviour
 {
+    [Header("❤️ Здоровье")]
     public int maxHealth = 3;
-    public int currentHealth; // сделано публичным для доступа из GameManager
+    [HideInInspector] public int currentHealth;
+    
+    [Header("Эффекты")]
     public float invincibilityTime = 1f;
-    private float invincibilityTimer;
-    public HealthUI healthUI; // заменено с HPView на HealthUI
+    private bool _isInvincible = false;
+    private SpriteRenderer _spriteRenderer;
+    private PlayerMovement movement;
+    private PlayerAttack attack;
 
-    private void Start()
+    void Start()
     {
         currentHealth = maxHealth;
-        if (healthUI != null) healthUI.UpdateHealth(currentHealth, maxHealth);
+        _spriteRenderer = GetComponent<SpriteRenderer>();
+        movement = GetComponent<PlayerMovement>();
+        attack = GetComponent<PlayerAttack>();
+        
+        fGameManager.Instance?.UpdateHealthUI();
     }
 
-    private void Update()
+    public void TakeDamage(int amount)
     {
-        if (invincibilityTimer > 0)
-            invincibilityTimer -= Time.deltaTime;
-    }
-
-    public void TakeDamage(int amount, Vector2 knockback)
-    {
-        if (invincibilityTimer > 0) return;
+        if (_isInvincible || currentHealth <= 0) return;
+        
         currentHealth -= amount;
-        if (healthUI != null) healthUI.UpdateHealth(currentHealth, maxHealth);
-        invincibilityTimer = invincibilityTime;
-
-        // Отбрасывание
-        Rigidbody2D rb = GetComponent<Rigidbody2D>();
-        if (rb != null) rb.linearVelocity = knockback;
-
+        Debug.Log($"👤 Урон! Здоровье: {currentHealth}/{maxHealth} | Источник урона: {new System.Diagnostics.StackTrace()}");
+        
+        StartCoroutine(InvincibilityCoroutine());
+        
         if (currentHealth <= 0)
+        {
             Die();
+        }
+        fGameManager.Instance?.UpdateHealthUI();
     }
 
-    private void Die()
+    System.Collections.IEnumerator InvincibilityCoroutine()
     {
-        // Просто перезагружаем сцену; сохранённая позиция загрузится из SavePoint в Start() PlayerController
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        _isInvincible = true;
+        float elapsed = 0f;
+        
+        while (elapsed < invincibilityTime)
+        {
+            _spriteRenderer.enabled = !_spriteRenderer.enabled;
+            yield return new WaitForSeconds(0.1f);
+            elapsed += 0.1f;
+        }
+        _spriteRenderer.enabled = true;
+        _isInvincible = false;
     }
 
-    public void Heal(int amount)
+    void Die()
     {
-        currentHealth = Mathf.Min(currentHealth + amount, maxHealth);
-        if (healthUI != null) healthUI.UpdateHealth(currentHealth, maxHealth);
+        Debug.Log("💀 Игрок умер!");
+        if (movement != null)
+        {
+            movement.enabled = false;
+        }
+        if (attack != null)
+        {
+            attack.enabled = false;
+        }
+        enabled = false;
+
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.bodyType = RigidbodyType2D.Static;
+        }
+
+        _spriteRenderer.color = Color.gray;
+        Invoke(nameof(ShowGameOver), 0.5f);
+    }
+
+    void ShowGameOver()
+    {
+        fGameManager.Instance?.ShowGameOver();
     }
 }

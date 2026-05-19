@@ -2,25 +2,91 @@ using UnityEngine;
 
 public class Bullet : MonoBehaviour
 {
-    public int damage = 1;
+    public float speed = 15f;
+    public int damage = 1;          // Урон пули (можно менять в инспекторе)
     public float lifetime = 3f;
-    public float speed = 15f; // добавлено для совместимости с префабом (скорость задаётся в PlayerController)
+    public string targetTag = "Enemy";
+    public string ignoreTag = "Player";
 
-    private void Start()
+    private Vector2 _direction;
+    private SpriteRenderer spriteRenderer;
+
+    public void SetDirection(Vector2 dir)
     {
+        _direction = dir.normalized;
+        if (_direction != Vector2.zero)
+        {
+            transform.right = _direction;
+        }
+    }
+
+    void Start()
+    {
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        if (_direction != Vector2.zero)
+        {
+            transform.right = _direction;
+        }
+        SetupVisual();
         Destroy(gameObject, lifetime);
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+    void Update()
     {
-        if (other.CompareTag("Enemy"))
+        transform.Translate(_direction * speed * Time.deltaTime, Space.World);
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.isTrigger || (!string.IsNullOrEmpty(ignoreTag) && other.CompareTag(ignoreTag)))
         {
-            other.GetComponent<Enemy>()?.TakeDamage(damage);
-            Destroy(gameObject);
+            return;
         }
-        else if (other.CompareTag("Wall"))
+
+        if (other.CompareTag("Enemy") && targetTag == "Enemy")
         {
+            Debug.Log("💥 Попадание! Урон: " + damage);
+
+            Enemy enemy = other.GetComponent<Enemy>();
+            if (enemy != null)
+            {
+                enemy.TakeDamage(damage);
+            }
+
             Destroy(gameObject);
+            return;
         }
+
+        if (other.CompareTag("Player") && targetTag == "Player")
+        {
+            PlayerHealth player = other.GetComponent<PlayerHealth>();
+            if (player != null)
+            {
+                player.TakeDamage(damage);
+            }
+
+            Destroy(gameObject);
+            return;
+        }
+
+        Destroy(gameObject);
+    }
+
+    void SetupVisual()
+    {
+        if (spriteRenderer == null)
+        {
+            return;
+        }
+
+        string spritePath = targetTag == "Player" ? "Sprites/enemy_projectile" : "Sprites/projectile_dagger";
+        Sprite projectileSprite = Resources.Load<Sprite>(spritePath);
+        if (projectileSprite != null)
+        {
+            spriteRenderer.sprite = projectileSprite;
+        }
+
+        spriteRenderer.color = Color.white;
+        transform.localScale = Vector3.one;
     }
 }
