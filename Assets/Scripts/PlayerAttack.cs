@@ -32,8 +32,8 @@ public class PlayerAttack : MonoBehaviour
         if (firePoint == null)
         {
             firePoint = new GameObject("FirePoint").transform;
-            firePoint.SetParent(transform);
         }
+        firePoint.SetParent(null);
 
         muzzleFlashSprite = Resources.Load<Sprite>("Sprites/muzzle_flash");
         UpdateFirePoint();
@@ -81,7 +81,7 @@ public class PlayerAttack : MonoBehaviour
         bulletScript.targetTag = "Enemy";
         bulletScript.ignoreTag = "Player";
         bulletScript.SetDirection(shootDir);
-        visualController?.PlayShoot();
+        // visualController?.PlayShoot();
         ShowMuzzleFlash(shootDir);
     }
 
@@ -107,7 +107,8 @@ public class PlayerAttack : MonoBehaviour
     void UpdateFirePoint()
     {
         float direction = playerMovement != null ? playerMovement.facingDirection : (transform.localScale.x >= 0f ? 1f : -1f);
-        firePoint.localPosition = new Vector3(Mathf.Abs(firePointOffset.x) * direction, firePointOffset.y, 0f);
+        Vector3 offset = new Vector3(Mathf.Abs(firePointOffset.x) * direction, firePointOffset.y, 0f);
+        firePoint.position = transform.position + offset;
     }
 
     void ShowMuzzleFlash(Vector2 shootDir)

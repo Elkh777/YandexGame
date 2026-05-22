@@ -44,33 +44,38 @@ public class EnemySpawner : MonoBehaviour
 
     private void SpawnEnemy()
     {
+        GameObject prefab = Resources.Load<GameObject>("Sprites/Prefabs/Enemy");
+        if (prefab == null)
+        {
+            Debug.LogError("Enemy prefab not found in Resources/Sprites/Prefabs/Enemy");
+            return;
+        }
+
         float direction = player.localScale.x >= 0f ? 1f : -1f;
         float spawnDistance = Random.Range(spawnAheadMin, spawnAheadMax) * direction;
         float spawnX = Mathf.Clamp(player.position.x + spawnDistance, minSpawnX, maxSpawnX);
 
-        GameObject enemyObject = new GameObject("Enemy");
+        GameObject enemyObject = Instantiate(prefab, new Vector3(spawnX, groundY + 1f, 0f), Quaternion.identity);
         enemyObject.tag = "Enemy";
-        enemyObject.transform.position = new Vector3(spawnX, groundY + 1f, 0f);
 
-        SpriteRenderer renderer = enemyObject.AddComponent<SpriteRenderer>();
-        renderer.sortingOrder = 1;
+        Enemy enemy = enemyObject.GetComponent<Enemy>();
+        if (enemy != null)
+        {
+            enemy.maxHealth = 3;
+            enemy.detectionRange = 8f;
+            enemy.checkLineOfSight = false;
+            enemy.patrolSpeed = 1.2f;
+            enemy.chaseSpeed = 2.4f;
+            enemy.attackRange = 1f;
+            enemy.rangedAttackRange = 6f;
+            enemy.scoreReward = 100;
+        }
 
-        BoxCollider2D collider = enemyObject.AddComponent<BoxCollider2D>();
-        collider.size = new Vector2(0.9f, 1.1f);
-
-        Rigidbody2D body = enemyObject.AddComponent<Rigidbody2D>();
-        body.gravityScale = 3f;
-        body.constraints = RigidbodyConstraints2D.FreezeRotation;
-
-        Enemy enemy = enemyObject.AddComponent<Enemy>();
-        enemy.maxHealth = 3;
-        enemy.detectionRange = 8f;
-        enemy.checkLineOfSight = false;
-        enemy.patrolSpeed = 1.2f;
-        enemy.chaseSpeed = 2.4f;
-        enemy.attackRange = 1f;
-        enemy.rangedAttackRange = 6f;
-        enemy.scoreReward = 100;
+        SpriteRenderer sr = enemyObject.GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            sr.sortingOrder = 1;
+        }
     }
 
     private void ScheduleNextSpawn()

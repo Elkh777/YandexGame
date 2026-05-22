@@ -43,14 +43,21 @@ public class PlayerHealth : MonoBehaviour
     {
         _isInvincible = true;
         float elapsed = 0f;
-        
+        bool visible = true;
+
         while (elapsed < invincibilityTime)
         {
-            _spriteRenderer.enabled = !_spriteRenderer.enabled;
+            visible = !visible;
+            Color c = _spriteRenderer.color;
+            c.a = visible ? 1f : 0.3f;
+            _spriteRenderer.color = c;
             yield return new WaitForSeconds(0.1f);
             elapsed += 0.1f;
         }
-        _spriteRenderer.enabled = true;
+
+        Color final = _spriteRenderer.color;
+        final.a = 1f;
+        _spriteRenderer.color = final;
         _isInvincible = false;
     }
 
