@@ -2,40 +2,49 @@ using UnityEngine;
 
 public class PlayerVisualController : MonoBehaviour
 {
-    public float runFrameRate = 12f;
-    public float shootPoseTime = 0.16f;
+    public float runFrameRate = 6f;
 
     private SpriteRenderer spriteRenderer;
+    private Transform visualTransform;
     private Rigidbody2D rb;
     private Sprite idleSprite;
-    private Sprite shootSprite;
     private Sprite[] runSprites;
     private Sprite jumpSprite;
-    private float shootUntil;
     private PlayerMovement playerMovement;
+    private float referenceHeight;
 
     void Awake()
     {
-        spriteRenderer = GetComponent<SpriteRenderer>();
         rb = GetComponent<Rigidbody2D>();
         playerMovement = GetComponent<PlayerMovement>();
 
-        idleSprite = Resources.Load<Sprite>("Sprites/anim/0");
-        shootSprite = Resources.Load<Sprite>("Sprites/player_shoot");
-        runSprites = new Sprite[8];
+        GameObject visual = new GameObject("Visual");
+        visualTransform = visual.transform;
+        visualTransform.SetParent(transform);
+        visualTransform.localPosition = Vector3.zero;
+        visualTransform.localRotation = Quaternion.identity;
+
+        SpriteRenderer original = GetComponent<SpriteRenderer>();
+        spriteRenderer = visual.AddComponent<SpriteRenderer>();
+        spriteRenderer.sprite = original.sprite;
+        spriteRenderer.sortingLayerID = original.sortingLayerID;
+        spriteRenderer.sortingOrder = original.sortingOrder;
+        spriteRenderer.color = original.color;
+        original.enabled = false;
+
+        idleSprite = Resources.Load<Sprite>("Sprites/PlayerAnim/Статика");
+        runSprites = new Sprite[4];
         for (int i = 0; i < runSprites.Length; i++)
         {
-            runSprites[i] = Resources.Load<Sprite>($"Sprites/anim/{i + 1}");
+            runSprites[i] = Resources.Load<Sprite>($"Sprites/PlayerAnim/{i + 1}");
         }
-        jumpSprite = Resources.Load<Sprite>("Sprites/anim/3");
+        jumpSprite = Resources.Load<Sprite>("Sprites/PlayerAnim/5");
 
-        if (spriteRenderer != null)
+        if (idleSprite != null)
         {
-            spriteRenderer.color = Color.white;
-            if (idleSprite != null)
-            {
-                spriteRenderer.sprite = idleSprite;
-            }
+            referenceHeight = idleSprite.rect.height;
+            spriteRenderer.sprite = idleSprite;
+            NormalizeSize(idleSprite);
         }
     }
 
@@ -46,41 +55,39 @@ public class PlayerVisualController : MonoBehaviour
             return;
         }
 
-        if (Time.time < shootUntil && shootSprite != null)
-        {
-            spriteRenderer.sprite = shootSprite;
-            return;
-        }
-
         bool isGrounded = playerMovement != null ? playerMovement.isGrounded : CheckGrounded();
+        Sprite targetSprite = null;
 
         if (!isGrounded && jumpSprite != null)
         {
-            spriteRenderer.sprite = jumpSprite;
-            return;
+            targetSprite = jumpSprite;
         }
-
-        if (Mathf.Abs(rb.linearVelocity.x) > 0.08f && HasRunSprites())
+        else if (Mathf.Abs(rb.linearVelocity.x) > 0.08f && HasRunSprites())
         {
             int frame = Mathf.FloorToInt(Time.time * runFrameRate) % runSprites.Length;
-            spriteRenderer.sprite = runSprites[frame];
-            return;
+            targetSprite = runSprites[frame];
+        }
+        else if (idleSprite != null)
+        {
+            targetSprite = idleSprite;
         }
 
-        if (idleSprite != null)
+        if (targetSprite != null && targetSprite != spriteRenderer.sprite)
         {
-            spriteRenderer.sprite = idleSprite;
+            spriteRenderer.sprite = targetSprite;
+            NormalizeSize(targetSprite);
         }
+    }
+
+    private void NormalizeSize(Sprite sprite)
+    {
+        float correction = referenceHeight / sprite.rect.height;
+        visualTransform.localScale = new Vector3(correction, correction, 1f);
     }
 
     private bool CheckGrounded()
     {
         return Mathf.Abs(rb.linearVelocity.y) < 0.1f;
-    }
-
-    public void PlayShoot()
-    {
-        shootUntil = Time.time + shootPoseTime;
     }
 
     private bool HasRunSprites()

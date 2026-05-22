@@ -7,7 +7,7 @@ public class PlayerHealth : MonoBehaviour
     [HideInInspector] public int currentHealth;
     
     [Header("Эффекты")]
-    public float invincibilityTime = 1f;
+    public float invincibilityTime = 0.5f;
     private bool _isInvincible = false;
     private SpriteRenderer _spriteRenderer;
     private PlayerMovement movement;
@@ -17,6 +17,11 @@ public class PlayerHealth : MonoBehaviour
     {
         currentHealth = maxHealth;
         _spriteRenderer = GetComponent<SpriteRenderer>();
+        if (_spriteRenderer == null || !_spriteRenderer.enabled)
+        {
+            Transform visual = transform.Find("Visual");
+            if (visual != null) _spriteRenderer = visual.GetComponent<SpriteRenderer>();
+        }
         movement = GetComponent<PlayerMovement>();
         attack = GetComponent<PlayerAttack>();
         
@@ -42,22 +47,21 @@ public class PlayerHealth : MonoBehaviour
     System.Collections.IEnumerator InvincibilityCoroutine()
     {
         _isInvincible = true;
+
         float elapsed = 0f;
         bool visible = true;
 
         while (elapsed < invincibilityTime)
         {
             visible = !visible;
-            Color c = _spriteRenderer.color;
+            Color c = Color.white;
             c.a = visible ? 1f : 0.3f;
             _spriteRenderer.color = c;
             yield return new WaitForSeconds(0.1f);
             elapsed += 0.1f;
         }
 
-        Color final = _spriteRenderer.color;
-        final.a = 1f;
-        _spriteRenderer.color = final;
+        _spriteRenderer.color = Color.white;
         _isInvincible = false;
     }
 

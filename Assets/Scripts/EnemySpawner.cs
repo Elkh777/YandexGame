@@ -55,7 +55,7 @@ public class EnemySpawner : MonoBehaviour
         float spawnDistance = Random.Range(spawnAheadMin, spawnAheadMax) * direction;
         float spawnX = Mathf.Clamp(player.position.x + spawnDistance, minSpawnX, maxSpawnX);
 
-        GameObject enemyObject = Instantiate(prefab, new Vector3(spawnX, groundY + 1f, 0f), Quaternion.identity);
+        GameObject enemyObject = Instantiate(prefab, new Vector3(spawnX, groundY, 0f), Quaternion.identity);
         enemyObject.tag = "Enemy";
 
         Enemy enemy = enemyObject.GetComponent<Enemy>();

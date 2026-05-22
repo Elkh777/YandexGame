@@ -146,7 +146,8 @@ public class Enemy : MonoBehaviour
 
     void FlipSprite(bool faceRight)
     {
-        transform.localScale = new Vector3(faceRight ? 1 : -1, 1, 1);
+        float x = Mathf.Abs(transform.localScale.x) * (faceRight ? 1 : -1);
+        transform.localScale = new Vector3(x, transform.localScale.y, transform.localScale.z);
     }
 
     public void TakeDamage(int amount)
