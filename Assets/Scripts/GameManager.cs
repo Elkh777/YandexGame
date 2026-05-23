@@ -216,7 +216,7 @@ public class fGameManager : MonoBehaviour
         if (_scoreText == null)
         {
             _scoreText = CreateText("ScoreText", canvas.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(520f, -74f), new Vector2(320f, 60f), "SCORE: 0", 36, Color.white);
+                new Vector2(170f, -130f), new Vector2(320f, 60f), "SCORE: 0", 25, Color.white);
             _scoreText.alignment = TextAlignmentOptions.Left;
         }
 
