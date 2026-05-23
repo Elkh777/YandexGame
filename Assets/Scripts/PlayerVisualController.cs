@@ -34,13 +34,14 @@ public class PlayerVisualController : MonoBehaviour
         spriteRenderer.color = original.color;
         original.enabled = false;
 
-        idleSprite = Resources.Load<Sprite>("Sprites/PlayerAnim/Статика");
-        runSprites = new Sprite[4];
-        for (int i = 0; i < runSprites.Length; i++)
+        idleSprite = Resources.Load<Sprite>("Sprites/PlayerAnimation/Статика");
+        string[] walkOrder = { "6 кадр", "2 кадр", "3 кадр", "5 кадр", "4 кадр", "1 кадр" };
+        runSprites = new Sprite[walkOrder.Length];
+        for (int i = 0; i < walkOrder.Length; i++)
         {
-            runSprites[i] = Resources.Load<Sprite>($"Sprites/PlayerAnim/{i + 1}");
+            runSprites[i] = Resources.Load<Sprite>($"Sprites/PlayerAnimation/{walkOrder[i]}");
         }
-        jumpSprite = Resources.Load<Sprite>("Sprites/PlayerAnim/5");
+        jumpSprite = Resources.Load<Sprite>("Sprites/PlayerAnimation/7 кадр");
         shootSprite = Resources.Load<Sprite>("Sprites/PlayerAnim/7");
 
         if (idleSprite != null)

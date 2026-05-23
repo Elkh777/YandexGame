@@ -80,6 +80,14 @@ public class PlayerAttack : MonoBehaviour
         }
 
         Vector2 shootDir = new Vector2(playerMovement.facingDirection, 0f);
+
+        GameObject nearestEnemy = FindNearestEnemy();
+        if (nearestEnemy != null)
+        {
+            Vector2 toEnemy = (Vector2)nearestEnemy.transform.position - (Vector2)bulletPos;
+            shootDir = toEnemy.normalized;
+        }
+
         bulletScript.targetTag = "Enemy";
         bulletScript.ignoreTag = "Player";
         bulletScript.SetDirection(shootDir);
@@ -131,5 +139,28 @@ public class PlayerAttack : MonoBehaviour
         flashRenderer.sortingOrder = 5;
 
         Destroy(flash, 0.08f);
+    }
+
+    private GameObject FindNearestEnemy()
+    {
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
+        GameObject nearest = null;
+        float nearestDist = float.MaxValue;
+
+        foreach (GameObject enemy in enemies)
+        {
+            Vector2 dir = (Vector2)enemy.transform.position - (Vector2)transform.position;
+            if (Mathf.Sign(dir.x) != Mathf.Sign(playerMovement.facingDirection))
+                continue;
+
+            float dist = dir.sqrMagnitude;
+            if (dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearest = enemy;
+            }
+        }
+
+        return nearest;
     }
 }
