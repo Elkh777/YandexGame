@@ -68,7 +68,9 @@ public class PlayerAttack : MonoBehaviour
             Debug.LogWarning("Префаб пули не назначен!");
             return;
         }
-        GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
+        Vector3 bulletPos = firePoint.position;
+        bulletPos.y += 1f;
+        GameObject bullet = Instantiate(bulletPrefab, bulletPos, Quaternion.identity);
         Bullet bulletScript = bullet.GetComponent<Bullet>();
         if (bulletScript == null)
         {
@@ -81,7 +83,7 @@ public class PlayerAttack : MonoBehaviour
         bulletScript.targetTag = "Enemy";
         bulletScript.ignoreTag = "Player";
         bulletScript.SetDirection(shootDir);
-        // visualController?.PlayShoot();
+        visualController?.PlayShoot();
         ShowMuzzleFlash(shootDir);
     }
 
@@ -119,7 +121,9 @@ public class PlayerAttack : MonoBehaviour
         }
 
         GameObject flash = new GameObject("MuzzleFlash");
-        flash.transform.position = firePoint.position + (Vector3)(shootDir * 0.18f);
+        Vector3 flashPos = firePoint.position + (Vector3)(shootDir * 0.35f);
+        flashPos.y += 1f;
+        flash.transform.position = flashPos;
         flash.transform.localScale = new Vector3(shootDir.x > 0f ? 1f : -1f, 1f, 1f);
 
         SpriteRenderer flashRenderer = flash.AddComponent<SpriteRenderer>();

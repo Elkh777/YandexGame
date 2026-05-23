@@ -10,6 +10,8 @@ public class PlayerVisualController : MonoBehaviour
     private Sprite idleSprite;
     private Sprite[] runSprites;
     private Sprite jumpSprite;
+    private Sprite shootSprite;
+    private float shootUntil;
     private PlayerMovement playerMovement;
     private float referenceHeight;
 
@@ -39,6 +41,7 @@ public class PlayerVisualController : MonoBehaviour
             runSprites[i] = Resources.Load<Sprite>($"Sprites/PlayerAnim/{i + 1}");
         }
         jumpSprite = Resources.Load<Sprite>("Sprites/PlayerAnim/5");
+        shootSprite = Resources.Load<Sprite>("Sprites/PlayerAnim/7");
 
         if (idleSprite != null)
         {
@@ -55,21 +58,29 @@ public class PlayerVisualController : MonoBehaviour
             return;
         }
 
-        bool isGrounded = playerMovement != null ? playerMovement.isGrounded : CheckGrounded();
         Sprite targetSprite = null;
 
-        if (!isGrounded && jumpSprite != null)
+        if (Time.time < shootUntil && shootSprite != null)
         {
-            targetSprite = jumpSprite;
+            targetSprite = shootSprite;
         }
-        else if (Mathf.Abs(rb.linearVelocity.x) > 0.08f && HasRunSprites())
+        else
         {
-            int frame = Mathf.FloorToInt(Time.time * runFrameRate) % runSprites.Length;
-            targetSprite = runSprites[frame];
-        }
-        else if (idleSprite != null)
-        {
-            targetSprite = idleSprite;
+            bool isGrounded = playerMovement != null ? playerMovement.isGrounded : CheckGrounded();
+
+            if (!isGrounded && jumpSprite != null)
+            {
+                targetSprite = jumpSprite;
+            }
+            else if (Mathf.Abs(rb.linearVelocity.x) > 0.08f && HasRunSprites())
+            {
+                int frame = Mathf.FloorToInt(Time.time * runFrameRate) % runSprites.Length;
+                targetSprite = runSprites[frame];
+            }
+            else if (idleSprite != null)
+            {
+                targetSprite = idleSprite;
+            }
         }
 
         if (targetSprite != null && targetSprite != spriteRenderer.sprite)
@@ -77,6 +88,11 @@ public class PlayerVisualController : MonoBehaviour
             spriteRenderer.sprite = targetSprite;
             NormalizeSize(targetSprite);
         }
+    }
+
+    public void PlayShoot()
+    {
+        shootUntil = Time.time + 0.2f;
     }
 
     private void NormalizeSize(Sprite sprite)
