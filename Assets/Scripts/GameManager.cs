@@ -130,7 +130,7 @@ public class fGameManager : MonoBehaviour
             _pausePanel.SetActive(false);
         }
 
-        ShowResultPanel("GAME WIN", Color.white, true);
+        ShowResultPanel("GAME WIN", Color.white, false);
         Debug.Log("GAME WIN!");
     }
 
@@ -216,7 +216,7 @@ public class fGameManager : MonoBehaviour
         if (_scoreText == null)
         {
             _scoreText = CreateText("ScoreText", canvas.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(170f, -130f), new Vector2(320f, 60f), "SCORE: 0", 25, Color.white);
+                new Vector2(170f, -180f), new Vector2(320f, 60f), "SCORE: 0", 25, Color.white);
             _scoreText.alignment = TextAlignmentOptions.Left;
         }
 
@@ -301,7 +301,7 @@ image.sprite = Resources.Load<Sprite>("Sprites/Prefabs/buttonManager");
         _startButton.onClick.AddListener(RestartGame);
 
         _runtimeRestartButton = CreatePauseMenuButton("RestartButton", _resultPanel.transform, new Vector2(0.5f, 0f),
-            new Vector2(0f, 90f), new Vector2(220f, 72f), "RESTART");
+            new Vector2(-230f, 90f), new Vector2(220f, 72f), "RESTART");
         _runtimeRestartButton.onClick.AddListener(RestartGame);
 
         _exitButton = CreatePauseMenuButton("ExitButton", _resultPanel.transform, new Vector2(0.5f, 0f),
@@ -328,11 +328,20 @@ image.sprite = Resources.Load<Sprite>("Sprites/Prefabs/buttonManager");
         CreateText("PauseTitle", _pausePanel.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
             new Vector2(0f, -92f), new Vector2(700f, 140f), "PAUSE", 86, Color.white).fontStyle = FontStyles.Bold;
 
-        CreatePauseMenuButton("ContinueButton", _pausePanel.transform, new Vector2(0.5f, 0f),
-            new Vector2(-180f, 90f), new Vector2(200f, 72f), "CONTINUE").onClick.AddListener(ContinueGame);
+        Button continueBtn = CreatePauseMenuButton("ContinueButton", _pausePanel.transform, new Vector2(0.5f, 0f),
+            new Vector2(-200f, 90f), new Vector2(200f, 72f), "CONTINUE");
+        continueBtn.onClick.AddListener(ContinueGame);
+        TextMeshProUGUI continueText = continueBtn.GetComponentInChildren<TextMeshProUGUI>();
+        if (continueText != null) continueText.fontSize = 24;
 
         CreatePauseMenuButton("ExitPauseButton", _pausePanel.transform, new Vector2(0.5f, 0f),
-            new Vector2(180f, 90f), new Vector2(180f, 72f), "EXIT").onClick.AddListener(ExitGame);
+            new Vector2(190f, 90f), new Vector2(180f, 72f), "EXIT").onClick.AddListener(ExitGame);
+
+        Button restartPauseBtn = CreatePauseMenuButton("RestartPauseButton", _pausePanel.transform, new Vector2(0.5f, 0f),
+            new Vector2(0f, 90f), new Vector2(180f, 72f), "RESTART");
+        restartPauseBtn.onClick.AddListener(RestartGame);
+        TextMeshProUGUI restartPauseText = restartPauseBtn.GetComponentInChildren<TextMeshProUGUI>();
+        if (restartPauseText != null) restartPauseText.fontSize = 24;
 
         _pausePanel.SetActive(false);
     }

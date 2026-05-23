@@ -3,8 +3,8 @@ using UnityEngine;
 public class EnemySpawner : MonoBehaviour
 {
     public int maxAliveEnemies = 5;
-    public float spawnIntervalMin = 2.5f;
-    public float spawnIntervalMax = 4.5f;
+    public float spawnIntervalMin = 5f;
+    public float spawnIntervalMax = 8f;
     public float spawnAheadMin = 10f;
     public float spawnAheadMax = 24f;
     public float minSpawnX = 8f;
@@ -68,7 +68,7 @@ public class EnemySpawner : MonoBehaviour
             enemy.chaseSpeed = 2.4f;
             enemy.attackRange = 1f;
             enemy.rangedAttackRange = 6f;
-            enemy.scoreReward = 100;
+            enemy.scoreReward = 500;
         }
 
         SpriteRenderer sr = enemyObject.GetComponent<SpriteRenderer>();

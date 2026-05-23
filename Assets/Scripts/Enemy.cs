@@ -31,13 +31,13 @@ public class Enemy : MonoBehaviour
     private float nextRangedAttackTime = 0f;
 
     [Header("Награда")]
-    public int scoreReward = 100;
+    public int scoreReward = 500;
 
     private Transform player;
     private bool isChasing = false;
     private bool isDead = false;
     private SpriteRenderer spriteRenderer;
-    private Rigidbody2D rb; // Ссылка на физику
+    private Rigidbody2D rb; 
 
     void Start()
     {
@@ -71,7 +71,6 @@ public class Enemy : MonoBehaviour
         CheckPlayerDetection();
     }
 
-    // Движение перенесено в FixedUpdate для корректной физики
     void FixedUpdate()
     {
         if (isDead) return;
@@ -108,7 +107,6 @@ public class Enemy : MonoBehaviour
         float dir = currentTarget.position.x - transform.position.x;
         float moveX = Mathf.Sign(dir) * patrolSpeed;
 
-        // Двигаем только по оси X. Ось Y управляется гравитацией автоматически!
         rb.linearVelocity = new Vector2(moveX, rb.linearVelocity.y);
 
         if (Mathf.Abs(dir) < 0.1f)
