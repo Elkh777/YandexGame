@@ -1,0 +1,30 @@
+# Unity generated
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+
+# Visual Studio
+.vscode/
+.vs/
+*.csproj
+*.sln
+*.suo
+*.user
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Unity specific
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+sysinfo.txt
+*.apk
+*.aab
+*.unitypackage
+
