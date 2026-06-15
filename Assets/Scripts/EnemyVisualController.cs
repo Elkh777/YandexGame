@@ -79,12 +79,13 @@ public class EnemyVisualController : MonoBehaviour
             return;
         }
 
-        // Приводим всех врагов к одной высоте в игре, независимо от размера их картинки в пикселях.
-        float scale = targetWorldHeight / spriteWorldHeight;
+        // Высота врага: индивидуальная (Tank крупнее, Rusher мельче) либо общая по умолчанию.
+        Enemy enemy = GetComponent<Enemy>();
+        float targetH = (enemy != null && enemy.visualHeight > 0f) ? enemy.visualHeight : targetWorldHeight;
+        float scale = targetH / spriteWorldHeight;
 
         // Враги смотрят влево, в сторону героя. Для спрайтов, нарисованных лицом вправо,
         // это отрицательный знак по X (отзеркаливание); для спрайта лицом влево — положительный.
-        Enemy enemy = GetComponent<Enemy>();
         bool facesRight = enemy == null || enemy.spriteFacesRight;
         float signX = facesRight ? -1f : 1f;
         transform.localScale = new Vector3(signX * scale, scale, 1f);

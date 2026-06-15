@@ -137,7 +137,7 @@ public class AudioManager : MonoBehaviour
         Image bg = panel.AddComponent<Image>();
         bg.color = new Color(0.06f, 0.02f, 0.025f, 0.96f);
 
-        CreateLabel(panel.transform, "НАСТРОЙКИ ЗВУКА", 40, new Vector2(0f, -50f), new Vector2(560f, 70f), FontStyles.Bold);
+        CreateLabel(panel.transform, "НАСТРОЙКИ ЗВУКА", 40, new Vector2(0f, 175f), new Vector2(560f, 70f), FontStyles.Bold);
 
         AudioManager am = Instance;
         CreateSlider(panel.transform, "Общая", new Vector2(0f, 60f), am != null ? am.Master : 1f,

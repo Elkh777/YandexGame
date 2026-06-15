@@ -76,7 +76,7 @@ public class LevelManager : MonoBehaviour
     private CameraFollow _cameraFollow;
     private Camera _camera;
     private float _defaultCamSize = 5f;
-    private EnemySpawner _enemySpawner;
+    private WaveSpawner _waveSpawner;
     private GameObject _currentPortal;
     private Canvas _fadeCanvas;
     private Image _fadeImage;
@@ -114,7 +114,15 @@ public class LevelManager : MonoBehaviour
         _player = GameObject.FindGameObjectWithTag("Player");
         _camera = Camera.main;
         _cameraFollow = _camera != null ? _camera.GetComponent<CameraFollow>() : null;
-        _enemySpawner = FindFirstObjectByType<EnemySpawner>();
+
+        // Надёжно получаем WaveSpawner независимо от порядка инициализации (создаём, если ещё нет).
+        _waveSpawner = WaveSpawner.Instance != null ? WaveSpawner.Instance : FindFirstObjectByType<WaveSpawner>();
+        if (_waveSpawner == null)
+        {
+            GameObject ws = new GameObject("WaveSpawner");
+            ws.AddComponent<WaveSpawner>();
+            _waveSpawner = WaveSpawner.Instance;
+        }
 
         if (_camera != null && _camera.orthographic)
         {
@@ -209,18 +217,6 @@ public class LevelManager : MonoBehaviour
             }
         }
 
-        if (_enemySpawner != null)
-        {
-            if (levelGroundY != null && levelIndex < levelGroundY.Length)
-                _enemySpawner.groundY = levelGroundY[levelIndex];
-
-            if (levelEnemyMinX != null && levelIndex < levelEnemyMinX.Length)
-                _enemySpawner.minSpawnX = levelEnemyMinX[levelIndex];
-
-            if (levelEnemyMaxX != null && levelIndex < levelEnemyMaxX.Length)
-                _enemySpawner.maxSpawnX = levelEnemyMaxX[levelIndex];
-        }
-
         ClearEnemies();
         SpawnPortal(levelIndex);
 
@@ -230,7 +226,34 @@ public class LevelManager : MonoBehaviour
             _cameraFollow.SnapToTarget();
         }
 
+        // Запускаем волны для этого уровня. Портал откроется только после их зачистки.
+        if (_waveSpawner != null)
+        {
+            float spawnMinX = (levelEnemyMinX != null && levelIndex < levelEnemyMinX.Length)
+                ? levelEnemyMinX[levelIndex]
+                : ((levelMinX != null && levelIndex < levelMinX.Length) ? levelMinX[levelIndex] : -4f);
+            float spawnMaxX = (levelEnemyMaxX != null && levelIndex < levelEnemyMaxX.Length)
+                ? levelEnemyMaxX[levelIndex]
+                : ((levelMaxX != null && levelIndex < levelMaxX.Length) ? levelMaxX[levelIndex] : 105f);
+            _waveSpawner.BeginLevel(levelIndex, spawnMinX, spawnMaxX);
+        }
+        else
+        {
+            // Волн нет — портал доступен сразу.
+            ActivatePortal();
+        }
+
         Debug.Log($"[LevelManager] Загружен уровень {levelIndex + 1}/{totalLevels}");
+    }
+
+    // Открывает портал уровня (вызывается WaveSpawner после зачистки всех волн).
+    public void ActivatePortal()
+    {
+        if (_currentPortal != null)
+        {
+            _currentPortal.SetActive(true);
+            AudioManager.Instance?.PlayLevelComplete();
+        }
     }
 
     public void GoToNextLevel()
@@ -284,7 +307,8 @@ public class LevelManager : MonoBehaviour
         _fadeCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
         _fadeCanvas.sortingOrder = 100;
         canvasObj.AddComponent<CanvasScaler>();
-        canvasObj.AddComponent<GraphicRaycaster>();
+        // GraphicRaycaster намеренно НЕ добавляем: иначе полноэкранное затемнение
+        // перехватывало бы все клики по кнопкам после перехода на уровень 2+.
 
         GameObject fadeObj = new GameObject("FadeImage");
         fadeObj.transform.SetParent(canvasObj.transform, false);
@@ -294,6 +318,7 @@ public class LevelManager : MonoBehaviour
         rect.sizeDelta = Vector2.zero;
         _fadeImage = fadeObj.AddComponent<Image>();
         _fadeImage.color = new Color(0, 0, 0, 0);
+        _fadeImage.raycastTarget = false; // затемнение никогда не должно ловить клики
     }
 
     private void SpawnPortal(int levelIndex)
@@ -352,6 +377,9 @@ public class LevelManager : MonoBehaviour
         Portal portal = _currentPortal.AddComponent<Portal>();
         portal.pulseAlpha = false;     // камень не должен мерцать прозрачностью
         portal.pulseIntensity = 0.03f; // едва заметное «дыхание»
+
+        // Портал закрыт, пока не зачищены все волны (открывается через ActivatePortal).
+        _currentPortal.SetActive(false);
     }
 
     private void FindGround()

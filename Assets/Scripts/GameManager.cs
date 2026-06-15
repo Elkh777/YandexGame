@@ -36,6 +36,13 @@ public class fGameManager : MonoBehaviour
     private int _levelNumber = 1;
     private GameObject _settingsPanel;
 
+    // Плавные сердечки игрока (Filled): анимация постепенного убывания HP.
+    private Image[] _heartImages;
+    private bool _heartsConfigured = false;
+    private float _displayedHP = -1f;
+    private float _targetHP = 0f;
+    private float _maxHP = 0f;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -93,17 +100,56 @@ public class fGameManager : MonoBehaviour
         Debug.Log("GAME OVER!");
     }
 
+    // Совместимость: пересчитать здоровье от текущего игрока.
     public void UpdateHealthUI()
     {
         PlayerHealth player = FindFirstObjectByType<PlayerHealth>();
-        if (player == null || healthIcons == null) return;
+        if (player != null) SetPlayerHealth(player.CurrentHP, player.MaxHP);
+    }
 
+    // Устанавливает целевое HP игрока; сердечки плавно догоняют его в Update.
+    public void SetPlayerHealth(float current, float max)
+    {
+        ConfigureHearts();
+        _targetHP = current;
+        _maxHP = max;
+        if (_displayedHP < 0f) _displayedHP = current; // первичная инициализация без анимации
+    }
+
+    // Переводит иконки-сердечки в режим Filled (частичное заполнение).
+    private void ConfigureHearts()
+    {
+        if (_heartsConfigured || healthIcons == null) return;
+
+        _heartImages = new Image[healthIcons.Length];
         for (int i = 0; i < healthIcons.Length; i++)
         {
-            if (healthIcons[i] != null)
+            if (healthIcons[i] == null) continue;
+            healthIcons[i].SetActive(true);
+            Image img = healthIcons[i].GetComponent<Image>();
+            if (img != null)
             {
-                healthIcons[i].SetActive(i < player.currentHealth);
+                img.type = Image.Type.Filled;
+                img.fillMethod = Image.FillMethod.Horizontal;
+                img.fillOrigin = (int)Image.OriginHorizontal.Left;
+                img.fillAmount = 1f;
             }
+            _heartImages[i] = img;
+        }
+        _heartsConfigured = true;
+    }
+
+    void Update()
+    {
+        // Плавная анимация сердечек к целевому HP.
+        if (!_heartsConfigured || _heartImages == null || _maxHP <= 0f) return;
+
+        _displayedHP = Mathf.MoveTowards(_displayedHP, _targetHP, _maxHP * Time.unscaledDeltaTime * 1.3f);
+        float perHeart = _maxHP / _heartImages.Length;
+        for (int i = 0; i < _heartImages.Length; i++)
+        {
+            if (_heartImages[i] == null) continue;
+            _heartImages[i].fillAmount = Mathf.Clamp01((_displayedHP - i * perHeart) / perHeart);
         }
     }
 
@@ -113,11 +159,7 @@ public class fGameManager : MonoBehaviour
 
         _score += amount;
         UpdateScoreUI();
-
-        if (_score >= targetScore)
-        {
-            ShowGameWin();
-        }
+        // Победа теперь определяется прохождением уровней (порталы после волн), а не суммой очков.
     }
 
     public int GetScore()
@@ -170,6 +212,11 @@ public class fGameManager : MonoBehaviour
     public void RestartGame()
     {
         Time.timeScale = 1f;
+        // Перезапускаем ТЕКУЩИЙ уровень (а не сбрасываемся на первый).
+        if (LevelManager.Instance != null)
+        {
+            LevelProgress.SetStartLevel(LevelManager.Instance.CurrentLevel);
+        }
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
@@ -329,10 +376,14 @@ image.sprite = Resources.Load<Sprite>("Sprites/Prefabs/buttonManager");
             mainCamera.gameObject.AddComponent<CameraFollow>();
         }
 
-        if (FindFirstObjectByType<EnemySpawner>() == null)
+        // Убираем старый непрерывный спавнер из сцены, чтобы он не конфликтовал с волнами.
+        EnemySpawner legacySpawner = FindFirstObjectByType<EnemySpawner>();
+        if (legacySpawner != null) Destroy(legacySpawner.gameObject);
+
+        if (WaveSpawner.Instance == null && FindFirstObjectByType<WaveSpawner>() == null)
         {
-            GameObject spawnerObject = new GameObject("EnemySpawner");
-            spawnerObject.AddComponent<EnemySpawner>();
+            GameObject spawnerObject = new GameObject("WaveSpawner");
+            spawnerObject.AddComponent<WaveSpawner>();
         }
 
         if (FindFirstObjectByType<CoinManager>() == null)

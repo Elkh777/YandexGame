@@ -5,6 +5,7 @@ public class Bullet : MonoBehaviour
     public float speed = 15f;
     public int damage = 1;          // Урон пули (можно менять в инспекторе)
     public float lifetime = 3f;
+    public float knockbackForce = 6f; // сила отброса врага по направлению пули
     public string targetTag = "Enemy";
     public string ignoreTag = "Player";
 
@@ -51,8 +52,10 @@ public class Bullet : MonoBehaviour
             if (enemy != null)
             {
                 enemy.TakeDamage(damage);
+                enemy.ApplyKnockback(_direction.normalized * knockbackForce);
             }
 
+            HitSpark.Spawn(transform.position); // белая искра в точке попадания
             Destroy(gameObject);
             return;
         }

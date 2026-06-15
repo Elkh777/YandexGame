@@ -78,7 +78,7 @@ public class MenuManager : MonoBehaviour
         Image bg = panel.AddComponent<Image>();
         bg.color = new Color(0.06f, 0.02f, 0.025f, 0.96f);
 
-        CreateLabel(panel.transform, "ВЫБОР УРОВНЯ", 42, new Vector2(0f, -55f), new Vector2(640f, 70f), FontStyles.Bold);
+        CreateLabel(panel.transform, "ВЫБОР УРОВНЯ", 42, new Vector2(0f, 170f), new Vector2(640f, 70f), FontStyles.Bold);
 
         // Ряд кнопок-уровней по центру.
         float spacing = 170f;

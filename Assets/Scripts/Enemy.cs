@@ -1,10 +1,17 @@
 using UnityEngine;
 
+// Вид врага. Поведение и характеристики задаются через ApplyKind (data-driven, т.к. враг
+// инстанцируется из одного префаба — подмена компонента-подкласса была бы хрупкой).
+public enum EnemyKind { Normal, Tank, Rusher }
+
 public class Enemy : MonoBehaviour
 {
     [Header("❤️ Здоровье")]
     public int maxHealth = 3;
-    private int currentHealth;
+    private HealthSystem _health;
+    private bool _kindApplied = false;
+    // Нормализованное HP (0..1) для полоски здоровья над врагом.
+    public float HealthNormalized => _health != null ? _health.Normalized : 1f;
 
     [Header("👁️ Обнаружение")]
     public float detectionRange = 5f;
@@ -39,17 +46,31 @@ public class Enemy : MonoBehaviour
     // true — исходный спрайт нарисован лицом вправо (враги 1-5); false — лицом влево (призрак).
     [HideInInspector] public bool spriteFacesRight = true;
 
+    [Header("Вид врага")]
+    public EnemyKind kind = EnemyKind.Normal;
+    // Высота врага в игровых единицах (читается EnemyVisualController; задаёт и размер хитбокса).
+    [HideInInspector] public float visualHeight = 2.2f;
+    // Сопротивление отбросу: 0 — отлетает полностью, 1 — не двигается (танк — тяжёлый).
+    [HideInInspector] public float knockbackResistance = 0.2f;
+    public float knockbackDuration = 0.15f;
+    private float _knockbackUntil = 0f;
+
     private Transform player;
     private bool isChasing = false;
     private bool isDead = false;
+    public bool IsDead => isDead;
     private SpriteRenderer spriteRenderer;
     private Rigidbody2D rb; 
 
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        currentHealth = maxHealth;
         spriteRenderer = GetComponent<SpriteRenderer>();
+
+        EnsureHealth();
+        if (!_kindApplied) _health.SetMax(maxHealth);
+        _health.OnDeath += Die; // смерть — через событие системы здоровья
+
         if (GetComponent<EnemyVisualController>() == null)
         {
             gameObject.AddComponent<EnemyVisualController>();
@@ -57,11 +78,22 @@ public class Enemy : MonoBehaviour
 
         if (pointA == null) CreatePoint(ref pointA, Vector3.left * 3);
         if (pointB == null) CreatePoint(ref pointB, Vector3.right * 3);
-        
+
         currentTarget = pointB;
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null) player = playerObj.transform;
+
+        EnemyHealthBar.Create(this); // полоска здоровья над головой
+    }
+
+    private void EnsureHealth()
+    {
+        if (_health == null)
+        {
+            _health = GetComponent<HealthSystem>();
+            if (_health == null) _health = gameObject.AddComponent<HealthSystem>();
+        }
     }
 
     void CreatePoint(ref Transform point, Vector3 offset)
@@ -81,8 +113,20 @@ public class Enemy : MonoBehaviour
     {
         if (isDead) return;
 
+        // Во время отброса враг летит по инерции — не задаём свою скорость.
+        if (Time.time < _knockbackUntil) return;
+
         if (isChasing) ChasePlayer();
         else Patrol();
+    }
+
+    // Отбрасывает врага (вызывается пулей игрока). Танк почти не реагирует.
+    public void ApplyKnockback(Vector2 force)
+    {
+        if (isDead || rb == null) return;
+        float k = 1f - Mathf.Clamp01(knockbackResistance);
+        rb.linearVelocity = new Vector2(force.x * k, rb.linearVelocity.y);
+        _knockbackUntil = Time.time + knockbackDuration;
     }
 
     void CheckPlayerDetection()
@@ -170,16 +214,69 @@ public class Enemy : MonoBehaviour
         transform.localScale = new Vector3(x, transform.localScale.y, transform.localScale.z);
     }
 
+    // Настраивает характеристики и поведение под вид врага и силу волны (масштаб HP).
+    public void ApplyKind(EnemyKind k, float hpMultiplier)
+    {
+        kind = k;
+        checkLineOfSight = false;
+        detectionRange = 9999f; // волновые враги всегда идут на игрока, без патруля
+
+        switch (k)
+        {
+            case EnemyKind.Tank:
+                maxHealth = Mathf.Max(1, Mathf.RoundToInt(8f * hpMultiplier));
+                chaseSpeed = 1.1f;
+                attackDamage = 2;
+                attackRange = 1.9f;
+                attackCooldown = 1.8f;
+                rangedAttackRange = 0f; // только ближний бой
+                visualHeight = 3.1f;    // крупный — большой хитбокс
+                knockbackResistance = 0.75f; // тяжёлый, почти не отлетает
+                scoreReward = 25;
+                break;
+
+            case EnemyKind.Rusher:
+                maxHealth = Mathf.Max(1, Mathf.RoundToInt(2f * hpMultiplier));
+                chaseSpeed = 4.6f;
+                attackDamage = 1;
+                attackRange = 1.2f;
+                attackCooldown = 1.0f;
+                rangedAttackRange = 0f; // только ближний бой, сближается
+                visualHeight = 1.7f;    // мелкий и юркий
+                knockbackResistance = 0f; // лёгкий — отлетает сильно
+                scoreReward = 10;
+                break;
+
+            default: // Normal — сбалансированный, умеет стрелять
+                maxHealth = Mathf.Max(1, Mathf.RoundToInt(3f * hpMultiplier));
+                chaseSpeed = 2.6f;
+                attackDamage = 1;
+                attackRange = 1.5f;
+                attackCooldown = 1.5f;
+                rangedAttackRange = 6f;
+                visualHeight = 2.2f;
+                knockbackResistance = 0.2f;
+                scoreReward = 15;
+                break;
+        }
+
+        EnsureHealth();
+        _health.SetMax(maxHealth);
+        _kindApplied = true;
+    }
+
     public void TakeDamage(int amount)
     {
         if (isDead) return;
-        currentHealth -= amount;
+        EnsureHealth();
+        _health.TakeDamage(amount);
         StartCoroutine(FlashEffect());
-        if (currentHealth <= 0) Die();
+        // Смерть обрабатывается через _health.OnDeath -> Die().
     }
 
     System.Collections.IEnumerator FlashEffect()
     {
+        // Красная вспышка попадания (плюс белая искра HitSpark в точке удара).
         Color original = spriteRenderer.color;
         spriteRenderer.color = Color.red;
         yield return new WaitForSeconds(0.1f);
@@ -193,6 +290,7 @@ public class Enemy : MonoBehaviour
         fGameManager.Instance?.AddScore(scoreReward);
         CoinManager.Instance?.SpawnCoins(transform.position);
         AudioManager.Instance?.PlayEnemyDeath();
+        CameraFollow.Instance?.Shake(0.15f, 0.18f); // лёгкая тряска при убийстве
         if (spriteRenderer != null) spriteRenderer.color = Color.gray;
         Collider2D enemyCollider = GetComponent<Collider2D>();
         if (enemyCollider != null) enemyCollider.enabled = false;
