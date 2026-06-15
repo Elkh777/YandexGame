@@ -31,6 +31,11 @@ public class fGameManager : MonoBehaviour
     private Button _runtimeRestartButton;
     private Button _exitButton;
 
+    private TextMeshProUGUI _levelText;
+    private TextMeshProUGUI _levelTextShadow;
+    private int _levelNumber = 1;
+    private GameObject _settingsPanel;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -171,7 +176,48 @@ public class fGameManager : MonoBehaviour
     public void ExitGame()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene("Assets/Scenes/MenuScene.unity");
+        SceneManager.LoadScene("MenuScene");
+    }
+
+    // Индикатор уровня (вызывается из LevelManager) + анимация появления.
+    public void UpdateLevelUI(int levelNumber)
+    {
+        _levelNumber = levelNumber;
+        string text = $"Уровень: {levelNumber}";
+        if (_levelText != null) _levelText.text = text;
+        if (_levelTextShadow != null) _levelTextShadow.text = text;
+        if (_levelText != null && gameObject.activeInHierarchy && isActiveAndEnabled)
+        {
+            StartCoroutine(AnimateLevelText());
+        }
+    }
+
+    private System.Collections.IEnumerator AnimateLevelText()
+    {
+        Transform t = _levelText.transform;
+        float time = 0f;
+        while (time < 0.35f)
+        {
+            time += Time.unscaledDeltaTime;
+            float scale = Mathf.Lerp(1.4f, 1f, time / 0.35f);
+            t.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+        t.localScale = Vector3.one;
+    }
+
+    private void OpenSettings()
+    {
+        if (_settingsPanel == null)
+        {
+            Canvas canvas = FindFirstObjectByType<Canvas>();
+            if (canvas != null) _settingsPanel = AudioManager.BuildSettingsPanel(canvas.transform, null);
+        }
+        if (_settingsPanel != null)
+        {
+            _settingsPanel.transform.SetAsLastSibling();
+            _settingsPanel.SetActive(true);
+        }
     }
 
     private void ShowResultPanel(string title, Color titleColor, bool showStartButton)
@@ -218,6 +264,18 @@ public class fGameManager : MonoBehaviour
             _scoreText = CreateText("ScoreText", canvas.transform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(170f, -180f), new Vector2(320f, 60f), "SCORE: 0", 25, Color.white);
             _scoreText.alignment = TextAlignmentOptions.Left;
+        }
+
+        // Индикатор уровня — вверху по центру, с тенью для читаемости.
+        if (_levelText == null)
+        {
+            _levelTextShadow = CreateText("LevelTextShadow", canvas.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(3f, -63f), new Vector2(420f, 70f), $"Уровень: {_levelNumber}", 40, new Color(0f, 0f, 0f, 0.65f));
+            _levelTextShadow.fontStyle = FontStyles.Bold;
+
+            _levelText = CreateText("LevelText", canvas.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -60f), new Vector2(420f, 70f), $"Уровень: {_levelNumber}", 40, new Color(1f, 0.95f, 0.7f));
+            _levelText.fontStyle = FontStyles.Bold;
         }
 
         if (_pauseButtonText == null)
@@ -275,6 +333,12 @@ image.sprite = Resources.Load<Sprite>("Sprites/Prefabs/buttonManager");
         {
             GameObject spawnerObject = new GameObject("EnemySpawner");
             spawnerObject.AddComponent<EnemySpawner>();
+        }
+
+        if (FindFirstObjectByType<CoinManager>() == null)
+        {
+            GameObject coinObject = new GameObject("CoinManager");
+            coinObject.AddComponent<CoinManager>();
         }
 
         if (FindFirstObjectByType<LevelManager>() == null)
@@ -369,6 +433,12 @@ image.sprite = Resources.Load<Sprite>("Sprites/Prefabs/buttonManager");
         restartPauseBtn.onClick.AddListener(RestartGame);
         TextMeshProUGUI restartPauseText = restartPauseBtn.GetComponentInChildren<TextMeshProUGUI>();
         if (restartPauseText != null) restartPauseText.fontSize = 24;
+
+        Button settingsPauseBtn = CreatePauseMenuButton("SettingsPauseButton", _pausePanel.transform, new Vector2(0.5f, 0f),
+            new Vector2(0f, 175f), new Vector2(260f, 64f), "ЗВУК");
+        settingsPauseBtn.onClick.AddListener(OpenSettings);
+        TextMeshProUGUI settingsPauseText = settingsPauseBtn.GetComponentInChildren<TextMeshProUGUI>();
+        if (settingsPauseText != null) settingsPauseText.fontSize = 24;
 
         _pausePanel.SetActive(false);
     }

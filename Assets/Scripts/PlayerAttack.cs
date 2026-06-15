@@ -93,6 +93,7 @@ public class PlayerAttack : MonoBehaviour
         bulletScript.SetDirection(shootDir);
         visualController?.PlayShoot();
         ShowMuzzleFlash(shootDir);
+        AudioManager.Instance?.PlayShoot();
     }
 
     void MeleeAttack()
@@ -108,6 +109,7 @@ public class PlayerAttack : MonoBehaviour
                 if (enemy != null)
                 {
                     enemy.TakeDamage(meleeDamage);
+                    AudioManager.Instance?.PlayHit();
                     Debug.Log($"🗡️ Удар по врагу! Урон: {meleeDamage}");
                 }
             }

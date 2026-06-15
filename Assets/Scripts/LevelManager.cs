@@ -134,7 +134,9 @@ public class LevelManager : MonoBehaviour
         FindGround();
         BuildLocation2Level();
 
-        InitializeLevel(0);
+        // Старт с уровня, выбранного в меню (по умолчанию — первый).
+        int startLevel = Mathf.Clamp(LevelProgress.ConsumeStartLevel(), 0, totalLevels - 1);
+        InitializeLevel(startLevel);
     }
 
     public void InitializeLevel(int levelIndex)
@@ -142,6 +144,9 @@ public class LevelManager : MonoBehaviour
         if (levelIndex < 0 || levelIndex >= totalLevels) return;
 
         _currentLevel = levelIndex;
+
+        // Индикатор уровня вверху по центру.
+        fGameManager.Instance?.UpdateLevelUI(levelIndex + 1);
 
         for (int i = 0; i < levelBackgrounds.Length; i++)
         {
@@ -230,6 +235,10 @@ public class LevelManager : MonoBehaviour
 
     public void GoToNextLevel()
     {
+        // Текущий уровень пройден — разблокируем следующий и играем звук завершения.
+        LevelProgress.MarkCompleted(_currentLevel);
+        AudioManager.Instance?.PlayLevelComplete();
+
         if (_currentLevel + 1 >= totalLevels)
         {
             OnFinalLevelComplete();
