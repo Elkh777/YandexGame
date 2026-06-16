@@ -3,7 +3,17 @@ using UnityEngine;
 public class Bullet : MonoBehaviour
 {
     public float speed = 15f;
-    public int damage = 1;          // Урон пули (можно менять в инспекторе)
+    public int damage = 1;          // Базовый урон пули (можно менять в инспекторе)
+    public float damageMultiplier = 1f; // множитель урона от улучшения «Сила оружия» (только для пуль игрока)
+
+    [Header("Эффекты улучшений")]
+    public bool applyFreeze = false;    // замораживающая пуля (каждая 2-я при купленном улучшении)
+    public float freezeDuration = 1.5f;
+    public float freezeSlow = 0.5f;     // множитель скорости замороженного врага
+    public bool applyPoison = false;    // ядовитая пуля (урон во времени)
+    public float poisonDuration = 2.5f;
+    public float poisonDps = 0.6f;
+
     public float lifetime = 3f;
     public float knockbackForce = 6f; // сила отброса врага по направлению пули
     public string targetTag = "Enemy";
@@ -51,8 +61,10 @@ public class Bullet : MonoBehaviour
             Enemy enemy = other.GetComponent<Enemy>();
             if (enemy != null)
             {
-                enemy.TakeDamage(damage);
+                enemy.TakeDamage(damage * damageMultiplier);
                 enemy.ApplyKnockback(_direction.normalized * knockbackForce);
+                if (applyFreeze) enemy.ApplyFreeze(freezeDuration, freezeSlow);
+                if (applyPoison) enemy.ApplyPoison(poisonDuration, poisonDps);
             }
 
             HitSpark.Spawn(transform.position); // белая искра в точке попадания

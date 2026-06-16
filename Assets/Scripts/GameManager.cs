@@ -209,6 +209,27 @@ public class fGameManager : MonoBehaviour
         UpdatePauseButtonText();
     }
 
+    // Текущее состояние паузы (для магазина и других систем).
+    public bool IsPaused => _isPaused;
+
+    // Пауза специально для магазина: останавливает время, но НЕ показывает панель паузы
+    // (её показывает собственное окно магазина). Game Over/Win игнорируются.
+    public void PauseForShop()
+    {
+        if (_isGameOver || _isGameWon) return;
+        _isPaused = true;
+        Time.timeScale = 0f;
+        UpdatePauseButtonText();
+    }
+
+    // Снятие паузы после закрытия магазина.
+    public void ResumeFromShop()
+    {
+        _isPaused = false;
+        Time.timeScale = 1f;
+        UpdatePauseButtonText();
+    }
+
     public void RestartGame()
     {
         Time.timeScale = 1f;
@@ -376,20 +397,28 @@ image.sprite = Resources.Load<Sprite>("Sprites/Prefabs/buttonManager");
             mainCamera.gameObject.AddComponent<CameraFollow>();
         }
 
-        // Убираем старый непрерывный спавнер из сцены, чтобы он не конфликтовал с волнами.
+        // Убираем старые спавнеры толп (непрерывный и волновой) — теперь сдержанные энкаунтеры.
         EnemySpawner legacySpawner = FindFirstObjectByType<EnemySpawner>();
         if (legacySpawner != null) Destroy(legacySpawner.gameObject);
+        WaveSpawner legacyWave = FindFirstObjectByType<WaveSpawner>();
+        if (legacyWave != null) Destroy(legacyWave.gameObject);
 
-        if (WaveSpawner.Instance == null && FindFirstObjectByType<WaveSpawner>() == null)
+        if (EncounterManager.Instance == null && FindFirstObjectByType<EncounterManager>() == null)
         {
-            GameObject spawnerObject = new GameObject("WaveSpawner");
-            spawnerObject.AddComponent<WaveSpawner>();
+            GameObject spawnerObject = new GameObject("EncounterManager");
+            spawnerObject.AddComponent<EncounterManager>();
         }
 
         if (FindFirstObjectByType<CoinManager>() == null)
         {
             GameObject coinObject = new GameObject("CoinManager");
             coinObject.AddComponent<CoinManager>();
+        }
+
+        if (FindFirstObjectByType<ShopUI>() == null)
+        {
+            GameObject shopObject = new GameObject("ShopUI");
+            shopObject.AddComponent<ShopUI>();
         }
 
         if (FindFirstObjectByType<LevelManager>() == null)

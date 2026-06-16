@@ -45,6 +45,8 @@ public class Enemy : MonoBehaviour
 
     // true — исходный спрайт нарисован лицом вправо (враги 1-5); false — лицом влево (призрак).
     [HideInInspector] public bool spriteFacesRight = true;
+    // Цвет спрайта (по умолчанию белый = без тинта; элитные враги подкрашиваются).
+    [HideInInspector] public Color tintColor = Color.white;
 
     [Header("Вид врага")]
     public EnemyKind kind = EnemyKind.Normal;
@@ -54,6 +56,21 @@ public class Enemy : MonoBehaviour
     [HideInInspector] public float knockbackResistance = 0.2f;
     public float knockbackDuration = 0.15f;
     private float _knockbackUntil = 0f;
+
+    // Статус-эффекты от пуль игрока (улучшения «Заморозка»/«Яд»).
+    private float _frozenUntil = 0f;
+    private float _freezeSlow = 1f;     // множитель скорости, пока заморожен
+    private float _poisonUntil = 0f;
+    private float _poisonDps = 0f;
+    private float _nextPoisonTick = 0f;
+    private float _flashUntil = 0f;     // таймер красной вспышки при попадании
+    private bool _statusColorApplied = false; // активна ли сейчас покраска статусом
+    private static readonly Color FreezeColor = new Color(0.45f, 0.75f, 1f, 1f); // голубой «замёрзший»
+    private static readonly Color PoisonColor = new Color(0.5f, 1f, 0.4f, 1f);   // зелёный «отравленный»
+
+    [Header("Честный спавн")]
+    public float spawnGrace = 0.4f;      // задержка перед первой атакой/преследованием после появления
+    private float _actReadyTime = 0f;
 
     private Transform player;
     private bool isChasing = false;
@@ -84,6 +101,8 @@ public class Enemy : MonoBehaviour
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null) player = playerObj.transform;
 
+        _actReadyTime = Time.time + spawnGrace; // честная задержка перед агрессией
+
         EnemyHealthBar.Create(this); // полоска здоровья над головой
     }
 
@@ -105,13 +124,88 @@ public class Enemy : MonoBehaviour
 
     void Update()
     {
-        if (isDead || player == null) return;
+        if (isDead) return;
+        UpdateStatusEffects(); // яд и цвет (заморозка/яд/вспышка) — независимо от агрессии
+        if (player == null) return;
+        if (Time.time < _actReadyTime) return; // grace: ещё не агрессивен
         CheckPlayerDetection();
     }
+
+    // Тик яда + покраска спрайта по текущему статусу.
+    private void UpdateStatusEffects()
+    {
+        // Яд: периодический урон, пока действует (без красной вспышки).
+        if (Time.time < _poisonUntil && _poisonDps > 0f && Time.time >= _nextPoisonTick)
+        {
+            _nextPoisonTick = Time.time + 0.5f;
+            EnsureHealth();
+            _health.TakeDamage(_poisonDps * 0.5f); // урон за тик (0.5с)
+            if (isDead) return; // враг мог умереть от яда — цвет уже выставлен в Die()
+        }
+
+        if (spriteRenderer == null) return;
+
+        // Красим только при активном статусе; иначе возвращаем базовый тинт один раз,
+        // чтобы не перезаписывать цвет каждый кадр (не мешать визуальному контроллеру).
+        bool anyStatus = Time.time < _flashUntil || Time.time < _frozenUntil || Time.time < _poisonUntil;
+        if (anyStatus)
+        {
+            // Приоритет цвета: вспышка урона > заморозка > яд.
+            Color target;
+            if (Time.time < _flashUntil) target = Color.red;
+            else if (Time.time < _frozenUntil) target = FreezeColor;
+            else target = PoisonColor;
+            spriteRenderer.color = target;
+            _statusColorApplied = true;
+        }
+        else if (_statusColorApplied)
+        {
+            spriteRenderer.color = tintColor;
+            _statusColorApplied = false;
+        }
+    }
+
+    // ❄️ Замораживает врага: замедляет движение и красит в голубой на время.
+    public void ApplyFreeze(float duration, float slow)
+    {
+        if (isDead) return;
+        _frozenUntil = Mathf.Max(_frozenUntil, Time.time + duration);
+        _freezeSlow = Mathf.Clamp01(slow);
+    }
+
+    // ☠️ Отравляет врага: урон во времени + зелёный цвет.
+    public void ApplyPoison(float duration, float dps)
+    {
+        if (isDead) return;
+        _poisonUntil = Mathf.Max(_poisonUntil, Time.time + duration);
+        _poisonDps = Mathf.Max(_poisonDps, dps);
+        if (_nextPoisonTick < Time.time) _nextPoisonTick = Time.time + 0.5f;
+    }
+
+    // Текущий множитель скорости с учётом заморозки.
+    private float CurrentSpeedFactor() => Time.time < _frozenUntil ? _freezeSlow : 1f;
+
+    // Уровень земли везде около -3; всё, что упало ниже -40, считаем выпавшим из мира.
+    private const float KillPlaneY = -40f;
 
     void FixedUpdate()
     {
         if (isDead) return;
+
+        // Страховка от софт-лока: провалившийся за пределы мира враг не должен «висеть» живым
+        // и блокировать зачистку энкаунтера (а значит — открытие портала).
+        if (transform.position.y < KillPlaneY)
+        {
+            ForceDespawn();
+            return;
+        }
+
+        // Честная задержка после появления: стоим на месте (только гравитация), не преследуем.
+        if (Time.time < _actReadyTime)
+        {
+            if (rb != null) rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            return;
+        }
 
         // Во время отброса враг летит по инерции — не задаём свою скорость.
         if (Time.time < _knockbackUntil) return;
@@ -155,7 +249,7 @@ public class Enemy : MonoBehaviour
         if (currentTarget == null) return;
 
         float dir = currentTarget.position.x - transform.position.x;
-        float moveX = Mathf.Sign(dir) * patrolSpeed;
+        float moveX = Mathf.Sign(dir) * patrolSpeed * CurrentSpeedFactor();
 
         rb.linearVelocity = new Vector2(moveX, rb.linearVelocity.y);
 
@@ -169,7 +263,7 @@ public class Enemy : MonoBehaviour
     void ChasePlayer()
     {
         float dir = player.position.x - transform.position.x;
-        float moveX = Mathf.Sign(dir) * chaseSpeed;
+        float moveX = Mathf.Sign(dir) * chaseSpeed * CurrentSpeedFactor();
 
         rb.linearVelocity = new Vector2(moveX, rb.linearVelocity.y);
         FlipSprite(moveX > 0);
@@ -195,6 +289,7 @@ public class Enemy : MonoBehaviour
     void OnCollisionEnter2D(Collision2D collision)
     {
         if (isDead) return;
+        if (Time.time < _actReadyTime) return; // не бьём в фазе появления
         if (!collision.gameObject.CompareTag("Player")) return;
 
         PlayerHealth pScript = collision.gameObject.GetComponent<PlayerHealth>();
@@ -265,22 +360,17 @@ public class Enemy : MonoBehaviour
         _kindApplied = true;
     }
 
-    public void TakeDamage(int amount)
+    public void TakeDamage(int amount) => TakeDamage((float)amount);
+
+    // Дробный урон: позволяет улучшениям (например, +10% к силе оружия) масштабировать урон
+    // без потерь на целочисленном округлении. HealthSystem работает во float.
+    public void TakeDamage(float amount)
     {
         if (isDead) return;
         EnsureHealth();
         _health.TakeDamage(amount);
-        StartCoroutine(FlashEffect());
+        _flashUntil = Time.time + 0.12f; // красная вспышка (цвет ведёт UpdateStatusEffects)
         // Смерть обрабатывается через _health.OnDeath -> Die().
-    }
-
-    System.Collections.IEnumerator FlashEffect()
-    {
-        // Красная вспышка попадания (плюс белая искра HitSpark в точке удара).
-        Color original = spriteRenderer.color;
-        spriteRenderer.color = Color.red;
-        yield return new WaitForSeconds(0.1f);
-        spriteRenderer.color = original;
     }
 
     void Die()
@@ -296,6 +386,17 @@ public class Enemy : MonoBehaviour
         if (enemyCollider != null) enemyCollider.enabled = false;
         if (rb != null) rb.linearVelocity = Vector2.zero;
         Destroy(gameObject, 0.5f);
+    }
+
+    // Тихий деспавн без наград и звука (в отличие от Die) — для врагов, выпавших из мира.
+    private void ForceDespawn()
+    {
+        if (isDead) return;
+        isDead = true;
+        Collider2D enemyCollider = GetComponent<Collider2D>();
+        if (enemyCollider != null) enemyCollider.enabled = false;
+        if (rb != null) rb.linearVelocity = Vector2.zero;
+        Destroy(gameObject);
     }
 
     void TryRangedAttack()

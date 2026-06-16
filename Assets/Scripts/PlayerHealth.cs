@@ -79,7 +79,10 @@ public class PlayerHealth : MonoBehaviour
         float elapsed = 0f;
         bool visible = true;
 
-        while (elapsed < invincibilityTime)
+        // Базовое время + бонус от улучшения «Неуязвимость» (+0.5с за уровень).
+        float duration = invincibilityTime + UpgradeManager.BonusInvincibilityTime;
+
+        while (elapsed < duration)
         {
             visible = !visible;
             // Красная подсветка при попадании + мигание прозрачностью на время неуязвимости.

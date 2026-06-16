@@ -71,12 +71,34 @@ public class LevelManager : MonoBehaviour
     // Доля ширины, на которую сдвигаемся к следующей картинке — обрезает прозрачные поля справа и убирает щели.
     public float[] location2AdvanceFractions = { 0.93f, 1f, 1f, 1f, 1f };
 
+    [Header("Локация 3 — Катакомбы (склейка 5 картинок, двухъярусная)")]
+    public int catacombsLevelIndex = 2;                          // какой уровень — катакомбы
+    public string[] catacombsSpritePaths =
+    {
+        "Sprites/Катакомбы1",
+        "Sprites/Катакомбы2",
+        "Sprites/Катакомбы3",
+        "Sprites/Катакомбы4",
+        "Sprites/Катакомбы5",
+    };
+    public float catacombsCameraSize = 4.5f;        // приближение камеры (чтобы картинки перекрывали экран)
+    public float catacombsHeightScale = 1.8f;       // высота картинок относительно обзора (>1 — нет чёрных полос при панораме)
+    public float catacombsUpperFloorY = 1f;         // мировой Y верхнего коридора
+    public float catacombsLowerFloorY = -10f;       // мировой Y пола подвала (куда падает игрок; чем ниже — тем глубже провал)
+    public int catacombsLowerGroupStart = 3;        // с какой картинки начинается нижняя группа (подвал): 3 → Катакомбы4,5
+    // Где у КАЖДОЙ картинки нарисован пол (доля высоты снизу). Картинка ставится так, чтобы её пол лёг
+    // ровно на целевой Y своей группы → коллайдер совпадает с артом (игрок не висит и не проваливается мимо).
+    public float[] catacombsFloorFractions = { 0.40f, 0.40f, 0.40f, 0.14f, 0.27f };
+    [Range(0f, 1f)] public float catacombsCliffSegFrac = 0.55f;   // где обрыв в последней верхней картинке (доля ширины)
+    // Доля ширины для обрезки прозрачных краёв при стыковке (gap=0).
+    public float[] catacombsAdvanceFractions = { 0.98f, 0.98f, 0.98f, 0.98f, 1f };
+
     private int _currentLevel = 0;
     private GameObject _player;
     private CameraFollow _cameraFollow;
     private Camera _camera;
     private float _defaultCamSize = 5f;
-    private WaveSpawner _waveSpawner;
+    private EncounterManager _encounterManager;
     private GameObject _currentPortal;
     private Canvas _fadeCanvas;
     private Image _fadeImage;
@@ -86,6 +108,7 @@ public class LevelManager : MonoBehaviour
     private Vector3 _groundOriginalScale = Vector3.one;
     private Vector3 _groundOriginalPos;
     private bool _hasGroundOriginal = false;
+    private GameObject _levelBounds; // страховочный пол на всю длину уровня + боковые стены
     private float _defaultCamMinY;
     private float _defaultCamMaxY;
     private bool _hasCamDefaults = false;
@@ -93,6 +116,9 @@ public class LevelManager : MonoBehaviour
     private float _loc2LowFloorY;
     private float _loc2HighFloorY;
     private float _loc2EndFloorY;
+    private bool _catacombsBuilt = false;
+    private float _catacombsEndFloorY;             // = lowerFloorY (для ворот)
+    private float _catacombsCamMinY, _catacombsCamMaxY; // клампы камеры в пределах арта
     private float _defaultCamOffsetY;
     private float _defaultCamSmooth;
     private bool _hasCamExtraDefaults = false;
@@ -115,13 +141,13 @@ public class LevelManager : MonoBehaviour
         _camera = Camera.main;
         _cameraFollow = _camera != null ? _camera.GetComponent<CameraFollow>() : null;
 
-        // Надёжно получаем WaveSpawner независимо от порядка инициализации (создаём, если ещё нет).
-        _waveSpawner = WaveSpawner.Instance != null ? WaveSpawner.Instance : FindFirstObjectByType<WaveSpawner>();
-        if (_waveSpawner == null)
+        // Надёжно получаем EncounterManager независимо от порядка инициализации (создаём, если ещё нет).
+        _encounterManager = EncounterManager.Instance != null ? EncounterManager.Instance : FindFirstObjectByType<EncounterManager>();
+        if (_encounterManager == null)
         {
-            GameObject ws = new GameObject("WaveSpawner");
-            ws.AddComponent<WaveSpawner>();
-            _waveSpawner = WaveSpawner.Instance;
+            GameObject em = new GameObject("EncounterManager");
+            em.AddComponent<EncounterManager>();
+            _encounterManager = EncounterManager.Instance;
         }
 
         if (_camera != null && _camera.orthographic)
@@ -141,6 +167,7 @@ public class LevelManager : MonoBehaviour
 
         FindGround();
         BuildLocation2Level();
+        BuildCatacombsLevel();
 
         // Старт с уровня, выбранного в меню (по умолчанию — первый).
         int startLevel = Mathf.Clamp(LevelProgress.ConsumeStartLevel(), 0, totalLevels - 1);
@@ -175,6 +202,8 @@ public class LevelManager : MonoBehaviour
         }
 
         ApplyGroundForLevel(levelIndex);
+        BuildLevelBounds(levelIndex); // сплошной пол на всю длину (чтобы не проваливаться)
+        if (levelIndex != location2LevelIndex && levelIndex != catacombsLevelIndex) FitBackgroundWidth(levelIndex); // растянуть фон под длину уровня
 
         if (_player != null && spawnPoints != null && levelIndex < spawnPoints.Length)
         {
@@ -184,6 +213,16 @@ public class LevelManager : MonoBehaviour
                 Rigidbody2D rb = _player.GetComponent<Rigidbody2D>();
                 if (rb != null) rb.linearVelocity = Vector2.zero;
             }
+        }
+
+        // В катакомбах геометрия строится кодом (верхний пол высоко) — ставим игрока на верхний пол у начала,
+        // иначе он спавнится по старой точке Level 3 и сразу падает.
+        if (levelIndex == catacombsLevelIndex && _catacombsBuilt && _player != null)
+        {
+            float sx = (levelMinX != null && levelIndex < levelMinX.Length) ? levelMinX[levelIndex] : -4f;
+            _player.transform.position = new Vector3(sx + 2f, catacombsUpperFloorY + 1.5f, _player.transform.position.z);
+            Rigidbody2D prb = _player.GetComponent<Rigidbody2D>();
+            if (prb != null) prb.linearVelocity = Vector2.zero;
         }
 
         if (_cameraFollow != null && levelMinX != null && levelMaxX != null
@@ -207,6 +246,16 @@ public class LevelManager : MonoBehaviour
                 _cameraFollow.minY = _loc2LowFloorY + 1.4f + camOffsetY;
                 _cameraFollow.maxY = _loc2HighFloorY + 1.4f + camOffsetY;
             }
+            else if (levelIndex == catacombsLevelIndex && _catacombsBuilt)
+            {
+                // Приближённая камера + клампы Y строго внутри арта обеих групп → нет чёрных полос,
+                // при этом камера следует за игроком вниз при падении в обрыв.
+                if (_camera != null) _camera.orthographicSize = catacombsCameraSize;
+                _cameraFollow.offset.y = 0f;
+                _cameraFollow.smoothTime = 0.22f;
+                _cameraFollow.minY = _catacombsCamMinY;
+                _cameraFollow.maxY = _catacombsCamMaxY;
+            }
             else
             {
                 if (_camera != null) _camera.orthographicSize = _defaultCamSize;
@@ -226,8 +275,9 @@ public class LevelManager : MonoBehaviour
             _cameraFollow.SnapToTarget();
         }
 
-        // Запускаем волны для этого уровня. Портал откроется только после их зачистки.
-        if (_waveSpawner != null)
+        // Ворота уже стоят в конце уровня (статично, из SpawnPortal). Энкаунтеры — это бои по пути,
+        // они не управляют воротами.
+        if (_encounterManager != null)
         {
             float spawnMinX = (levelEnemyMinX != null && levelIndex < levelEnemyMinX.Length)
                 ? levelEnemyMinX[levelIndex]
@@ -235,24 +285,24 @@ public class LevelManager : MonoBehaviour
             float spawnMaxX = (levelEnemyMaxX != null && levelIndex < levelEnemyMaxX.Length)
                 ? levelEnemyMaxX[levelIndex]
                 : ((levelMaxX != null && levelIndex < levelMaxX.Length) ? levelMaxX[levelIndex] : 105f);
-            _waveSpawner.BeginLevel(levelIndex, spawnMinX, spawnMaxX);
-        }
-        else
-        {
-            // Волн нет — портал доступен сразу.
-            ActivatePortal();
+            _encounterManager.BeginLevel(levelIndex, spawnMinX, spawnMaxX);
         }
 
         Debug.Log($"[LevelManager] Загружен уровень {levelIndex + 1}/{totalLevels}");
     }
 
-    // Открывает портал уровня (вызывается WaveSpawner после зачистки всех волн).
+    // Открывает портал уровня (вызывается EncounterManager после зачистки всех энкаунтеров).
     public void ActivatePortal()
     {
         if (_currentPortal != null)
         {
             _currentPortal.SetActive(true);
             AudioManager.Instance?.PlayLevelComplete();
+            Debug.Log($"[LevelManager] Портал ОТКРЫТ в позиции {_currentPortal.transform.position}");
+        }
+        else
+        {
+            Debug.LogWarning("[LevelManager] ActivatePortal вызван, но _currentPortal == null!");
         }
     }
 
@@ -336,6 +386,11 @@ public class LevelManager : MonoBehaviour
         {
             groundY = _loc2EndFloorY;
         }
+        // В катакомбах ворота стоят на нижнем полу (в подвале), куда игрок спускается через обрыв.
+        else if (levelIndex == catacombsLevelIndex && _catacombsBuilt)
+        {
+            groundY = _catacombsEndFloorY;
+        }
 
         float portalX = maxX - portalOffsetFromEdge;
 
@@ -378,8 +433,9 @@ public class LevelManager : MonoBehaviour
         portal.pulseAlpha = false;     // камень не должен мерцать прозрачностью
         portal.pulseIntensity = 0.03f; // едва заметное «дыхание»
 
-        // Портал закрыт, пока не зачищены все волны (открывается через ActivatePortal).
-        _currentPortal.SetActive(false);
+        // Ворота стоят статично в конце уровня и видны сразу — игрок вбегает в них и переходит дальше.
+        _currentPortal.SetActive(true);
+        Debug.Log($"[LevelManager] Ворота уровня {levelIndex + 1} стоят в позиции {_currentPortal.transform.position}");
     }
 
     private void FindGround()
@@ -409,6 +465,78 @@ public class LevelManager : MonoBehaviour
         // Земля всегда в исходном состоянии; на location2 её всё равно не видно и не используют.
         _ground.localScale = _groundOriginalScale;
         _ground.position = _groundOriginalPos;
+    }
+
+    // Строит невидимый сплошной пол на всю длину уровня (minX..maxX), чтобы игрок не проваливался
+    // там, где видимая земля сцены заканчивается, и мог дойти до портала. Без боковых стен:
+    // верхний край пола стоит ровно на groundY (как у портала), чтобы игрок не «утопал» и не застревал.
+    // На location2 свой непрерывный пол — туда не вмешиваемся.
+    private void BuildLevelBounds(int levelIndex)
+    {
+        if (_levelBounds != null)
+        {
+            Destroy(_levelBounds);
+            _levelBounds = null;
+        }
+
+        if (levelIndex == location2LevelIndex && _loc2Built) return;
+        if (levelIndex == catacombsLevelIndex && _catacombsBuilt) return; // у катакомб свои полы (есть обрыв)
+
+        float minX = (levelMinX != null && levelIndex < levelMinX.Length) ? levelMinX[levelIndex] : -4f;
+        float maxX = (levelMaxX != null && levelIndex < levelMaxX.Length) ? levelMaxX[levelIndex] : 105f;
+        float groundY = (levelGroundY != null && levelIndex < levelGroundY.Length) ? levelGroundY[levelIndex] : -3f;
+
+        // Верх пола ставим на groundY — это авторитетная высота земли (на ней же стоит портал).
+        // Не используем bounds видимой земли: если найден не тот объект «Ground», пол встал бы высоко
+        // и игрок «утоп» бы в коллайдере (эффект невидимой стены).
+        float floorTopY = groundY;
+
+        // Тот же слой, что у земли сцены, — чтобы коллизии и определение «на земле» работали как обычно.
+        int groundLayer = _ground != null ? _ground.gameObject.layer : 0;
+
+        const float floorThickness = 6f;
+        // Пол с большим запасом по бокам (особенно справа за порталом) — игрок не свалится в пустоту,
+        // даже если пробежит мимо ворот. Стен нет, чтобы ничто не перекрывало движение.
+        float left = minX - 10f;
+        float right = maxX + 40f;
+        float width = right - left;
+        float centerX = (left + right) * 0.5f;
+
+        _levelBounds = new GameObject("SafetyFloor");
+        _levelBounds.layer = groundLayer;
+        _levelBounds.transform.position = new Vector3(centerX, floorTopY - floorThickness * 0.5f, 0f);
+        BoxCollider2D fc = _levelBounds.AddComponent<BoxCollider2D>();
+        fc.size = new Vector2(width, floorThickness);
+
+        Debug.Log($"[LevelManager] Пол уровня {levelIndex + 1}: X[{minX}..{maxX}], верх Y={floorTopY}, ширина={width}");
+    }
+
+    // Растягивает фон обычного уровня по ширине под длину уровня (minX..maxX), чтобы у удлинённого
+    // уровня не было пустого «хвоста» за краем картинки. Левый край фиксируем — стартовая часть не уезжает.
+    private void FitBackgroundWidth(int levelIndex)
+    {
+        if (levelBackgrounds == null || levelIndex >= levelBackgrounds.Length) return;
+        GameObject bg = levelBackgrounds[levelIndex];
+        if (bg == null) return;
+        SpriteRenderer sr = bg.GetComponentInChildren<SpriteRenderer>();
+        if (sr == null || sr.sprite == null) return;
+
+        float minX = (levelMinX != null && levelIndex < levelMinX.Length) ? levelMinX[levelIndex] : -4f;
+        float maxX = (levelMaxX != null && levelIndex < levelMaxX.Length) ? levelMaxX[levelIndex] : 105f;
+        float targetWidth = (maxX - minX) + 16f; // небольшой запас по краям
+
+        float curWidth = sr.bounds.size.x;
+        if (curWidth < 0.01f || targetWidth <= curWidth) return; // фон уже достаточно широкий — не трогаем
+
+        float leftEdge = sr.bounds.min.x; // фиксируем левый край, растягиваем вправо
+        float factor = targetWidth / curWidth;
+        Vector3 s = bg.transform.localScale;
+        bg.transform.localScale = new Vector3(s.x * factor, s.y, s.z);
+
+        float newLeft = sr.bounds.min.x;
+        Vector3 p = bg.transform.position;
+        p.x += (leftEdge - newLeft);
+        bg.transform.position = p;
     }
 
     // Склеивает 5 картинок location2 в один длинный уровень: фон, непрерывный пол-коллайдер
@@ -551,6 +679,126 @@ public class LevelManager : MonoBehaviour
         Debug.Log($"[LevelManager] location2 склеена: до X={newMaxX:F1}, пол {_loc2LowFloorY:F1}..{_loc2HighFloorY:F1}");
     }
 
+    // Склеивает 5 картинок «Катакомбы» в двухъярусный уровень: верхний коридор → обрыв → подвал.
+    // Все картинки ставятся на общий базлайн (низы выровнены), поэтому верхний пол (в картинках 1-3)
+    // и нижний пол (в картинках 4-5) сами оказываются на разной высоте — это и даёт ярусы.
+    // Коллайдеры: верхний пол до обрыва, ниже — сплошной нижний пол на всю длину (ловит падающих).
+    private void BuildCatacombsLevel()
+    {
+        if (levelBackgrounds == null
+            || catacombsLevelIndex < 0
+            || catacombsLevelIndex >= levelBackgrounds.Length
+            || levelBackgrounds[catacombsLevelIndex] == null
+            || catacombsSpritePaths == null
+            || catacombsSpritePaths.Length == 0)
+        {
+            return;
+        }
+
+        GameObject root = levelBackgrounds[catacombsLevelIndex];
+
+        // Старый одиночный фон Level 3 выключаем.
+        SpriteRenderer rootSr = root.GetComponent<SpriteRenderer>();
+        if (rootSr != null) rootSr.enabled = false;
+
+        float aspect = (_camera != null) ? _camera.aspect : (16f / 9f);
+        float camHalfHeight = catacombsCameraSize;
+        float camHalfWidth = catacombsCameraSize * aspect;
+
+        float H = camHalfHeight * 2f * Mathf.Max(0.8f, catacombsHeightScale); // высота всех картинок
+
+        float minX = (levelMinX != null && catacombsLevelIndex < levelMinX.Length) ? levelMinX[catacombsLevelIndex] : -4f;
+
+        float upperFloorY = catacombsUpperFloorY;
+        float lowerFloorY = catacombsLowerFloorY;
+        _catacombsEndFloorY = lowerFloorY;
+
+        float startX = minX - camHalfWidth; // левый край 1-й картинки = край обзора в начале
+        float cursorX = startX;
+
+        // Для обрыва и камеры запоминаем границы верхней/нижней групп.
+        float lastUpperLeft = 0f, lastUpperWidth = 0f;
+        float upperTopY = float.MinValue, lowerBottomY = float.MaxValue;
+
+        for (int i = 0; i < catacombsSpritePaths.Length; i++)
+        {
+            Sprite sprite = LoadLargestSprite(catacombsSpritePaths[i]);
+            if (sprite == null)
+            {
+                Debug.LogWarning($"[LevelManager] Не найдена картинка катакомб: {catacombsSpritePaths[i]}");
+                continue;
+            }
+
+            float spriteW = sprite.bounds.size.x;
+            float spriteH = sprite.bounds.size.y;
+            if (spriteW <= 0.0001f || spriteH <= 0.0001f) continue;
+
+            float scale = H / spriteH;          // пропорции сохраняем (scale по X и Y одинаков)
+            float segWidth = spriteW * scale;
+            float segLeftX = cursorX;
+            float segCenterX = segLeftX + segWidth * 0.5f;
+
+            // Верхняя группа (1..3) ставится по верхнему полу, нижняя (4..5) — по полу подвала.
+            // Вертикальный перепад между ними прячется чёрным провалом на стыке 3/4.
+            bool isLower = (i >= catacombsLowerGroupStart);
+            float floorY = isLower ? lowerFloorY : upperFloorY;
+            float floorFrac = (catacombsFloorFractions != null && i < catacombsFloorFractions.Length)
+                ? Mathf.Clamp01(catacombsFloorFractions[i]) : (isLower ? 0.2f : 0.4f);
+            // Картинка ставится так, чтобы её нарисованный пол (своя доля floorFrac снизу) лёг ровно на floorY.
+            float segCenterY = floorY - (floorFrac - 0.5f) * H;
+
+            GameObject seg = new GameObject($"Loc3_Seg{i + 1}");
+            seg.transform.SetParent(root.transform, false);
+            seg.transform.position = new Vector3(segCenterX, segCenterY, 0f);
+            seg.transform.localScale = new Vector3(scale, scale, 1f);
+            SpriteRenderer segSr = seg.AddComponent<SpriteRenderer>();
+            segSr.sprite = sprite;
+            segSr.color = Color.white;
+            segSr.sortingOrder = backgroundSortingOrder;
+
+            if (isLower) lowerBottomY = Mathf.Min(lowerBottomY, segCenterY - H * 0.5f);
+            else { lastUpperLeft = segLeftX; lastUpperWidth = segWidth; upperTopY = Mathf.Max(upperTopY, segCenterY + H * 0.5f); }
+
+            float advance = (catacombsAdvanceFractions != null && i < catacombsAdvanceFractions.Length)
+                ? Mathf.Clamp(catacombsAdvanceFractions[i], 0.5f, 1f) : 1f;
+            cursorX = segLeftX + segWidth * advance;
+        }
+
+        float totalRightX = cursorX;
+
+        // X обрыва — в последней верхней картинке (где заканчивается верхний коридорный пол).
+        float cliffX = (lastUpperWidth > 0f) ? lastUpperLeft + lastUpperWidth * Mathf.Clamp01(catacombsCliffSegFrac)
+                                             : startX + (totalRightX - startX) * 0.5f;
+
+        // Верхний пол: от старта до обрыва (дальше игрок падает).
+        CreateFloorBox(root.transform, startX - 10f, cliffX, upperFloorY);
+        // Пол подвала: от обрыва (ловит падающего) до конца — по нему игрок бежит к воротам.
+        CreateFloorBox(root.transform, cliffX - 1f, totalRightX + 10f, lowerFloorY);
+
+        // Большая тёмная подложка на весь вертикальный размах склейки — прячет прозрачные/чёрные края.
+        if (upperTopY < lowerBottomY) { upperTopY = upperFloorY + H; lowerBottomY = lowerFloorY - H; }
+        float backdropMidY = (upperTopY + lowerBottomY) * 0.5f;
+        // Тёмно-каменный (не почти-чёрный) — прозрачные края читаются как тёмный камень, а не как чёрная дыра.
+        CreateBackdrop(root.transform, startX, totalRightX, (upperTopY - lowerBottomY) + 16f, backdropMidY,
+            new Color(0.16f, 0.15f, 0.17f, 1f));
+
+        // Длина уровня и границы из реальной ширины склейки.
+        float newMaxX = totalRightX - camHalfWidth;
+        if (levelMaxX != null && catacombsLevelIndex < levelMaxX.Length) levelMaxX[catacombsLevelIndex] = newMaxX;
+        if (levelEnemyMinX != null && catacombsLevelIndex < levelEnemyMinX.Length) levelEnemyMinX[catacombsLevelIndex] = minX + 8f;
+        if (levelEnemyMaxX != null && catacombsLevelIndex < levelEnemyMaxX.Length) levelEnemyMaxX[catacombsLevelIndex] = newMaxX - 8f;
+        // Враги спавнятся над верхним полом и падают на него или в обрыв (на пол подвала).
+        if (levelGroundY != null && catacombsLevelIndex < levelGroundY.Length) levelGroundY[catacombsLevelIndex] = upperFloorY + 4f;
+
+        // Камера: обзор строго внутри арта обеих групп → нет чёрных полос.
+        _catacombsCamMinY = lowerBottomY + camHalfHeight;
+        _catacombsCamMaxY = upperTopY - camHalfHeight;
+        if (_catacombsCamMaxY < _catacombsCamMinY) _catacombsCamMaxY = _catacombsCamMinY;
+
+        _catacombsBuilt = true;
+        Debug.Log($"[LevelManager] Катакомбы склеены: X[{startX:F1}..{totalRightX:F1}], верх пол Y={upperFloorY:F1}, низ Y={lowerFloorY:F1}, обрыв X={cliffX:F1}, maxX={newMaxX:F1}");
+    }
+
     // Невидимый коллайдер-площадка с верхом на topY (тянется вниз, чтобы образовать сплошной пол/стену ступени).
     private void CreateFloorBox(Transform parent, float xLeft, float xRight, float topY)
     {
@@ -566,7 +814,7 @@ public class LevelManager : MonoBehaviour
         col.size = new Vector2(width, depth);
     }
 
-    private void CreateBackdrop(Transform parent, float leftX, float rightX, float H, float floorY)
+    private void CreateBackdrop(Transform parent, float leftX, float rightX, float H, float floorY, Color? color = null)
     {
         GameObject backdrop = new GameObject("Loc2_Backdrop");
         backdrop.transform.SetParent(parent, false);
@@ -574,7 +822,7 @@ public class LevelManager : MonoBehaviour
 
         SpriteRenderer sr = backdrop.AddComponent<SpriteRenderer>();
         sr.sprite = GetSolidSprite();
-        sr.color = new Color(0.05f, 0.045f, 0.06f, 1f); // тёмный, под цвет подземелья
+        sr.color = color ?? new Color(0.05f, 0.045f, 0.06f, 1f); // тёмный, под цвет подземелья
         sr.sortingOrder = backdropSortingOrder;
 
         float width = (rightX - leftX) + 20f;

@@ -69,7 +69,8 @@ public class EnemyVisualController : MonoBehaviour
         }
 
         spriteRenderer.sprite = sprite;
-        spriteRenderer.color = Color.white;
+        Enemy enemyTint = GetComponent<Enemy>();
+        spriteRenderer.color = enemyTint != null ? enemyTint.tintColor : Color.white; // тинт для элитных врагов
 
         float ppu = sprite.pixelsPerUnit > 0f ? sprite.pixelsPerUnit : 100f;
         float spriteWorldHeight = sprite.rect.height / ppu;

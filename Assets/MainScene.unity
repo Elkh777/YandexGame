@@ -768,17 +768,17 @@ MonoBehaviour:
   - -4
   - -4
   levelMaxX:
-  - 105
   - 150
-  - 105
+  - 150
+  - 150
   levelEnemyMinX:
   - 8
   - 8
   - 8
   levelEnemyMaxX:
-  - 100
   - 145
-  - 100
+  - 145
+  - 145
   transitionDelay: 0.3
   totalLevels: 3
   portalOffsetFromEdge: 5

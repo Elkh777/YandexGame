@@ -9,9 +9,9 @@ public class CoinManager : MonoBehaviour
     public static CoinManager Instance { get; private set; }
 
     [Header("Выпадение")]
-    [Range(0f, 1f)] public float dropChance = 0.8f; // шанс выпадения монет с врага
-    public int minCoinsPerEnemy = 1;
-    public int maxCoinsPerEnemy = 3;
+    [Range(0f, 1f)] public float dropChance = 1f;   // шанс выпадения монет с врага (всегда дропают)
+    public int minCoinsPerEnemy = 5;
+    public int maxCoinsPerEnemy = 9;
 
     [Header("Подбор и физика")]
     public float pickupRange = 3f;      // дальность, с которой монетка летит к игроку
@@ -29,6 +29,13 @@ public class CoinManager : MonoBehaviour
     private int _coinCount;
     private TextMeshProUGUI _coinText;
 
+    // Баланс в рамках игровой сессии: статика переживает перезагрузку сцен (смену уровней),
+    // но сбрасывается при выходе из игры. Магазин тратит монеты из этого же баланса.
+    private static int _sessionCoins;
+
+    // Событие об изменении баланса — на него подписывается HUD магазина и окно магазина.
+    public static event System.Action<int> OnCoinsChanged;
+
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -45,6 +52,7 @@ public class CoinManager : MonoBehaviour
         if (playerObj != null) _player = playerObj.transform;
 
         _coinSprite = BuildCoinSprite(32);
+        _coinCount = _sessionCoins; // восстанавливаем баланс, накопленный за сессию
         BuildHud();
 
         for (int i = 0; i < initialPoolSize; i++)
@@ -70,12 +78,23 @@ public class CoinManager : MonoBehaviour
     public void OnCoinCollected(Vector3 position)
     {
         _coinCount++;
+        _sessionCoins = _coinCount;
         UpdateHud();
         AudioManager.Instance?.PlayCoin();
         StartCoroutine(Flash(position));
     }
 
     public int CoinCount => _coinCount;
+
+    // Пытается списать монеты. Возвращает false, если их недостаточно (покупка не состоится).
+    public bool SpendCoins(int amount)
+    {
+        if (amount <= 0 || _coinCount < amount) return false;
+        _coinCount -= amount;
+        _sessionCoins = _coinCount;
+        UpdateHud();
+        return true;
+    }
 
     public void ReturnToPool(Coin coin)
     {
@@ -131,29 +150,15 @@ public class CoinManager : MonoBehaviour
 
     private void BuildHud()
     {
-        Canvas canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null) return;
-
-        GameObject obj = new GameObject("CoinCounter");
-        obj.transform.SetParent(canvas.transform, false);
-        RectTransform rect = obj.AddComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(0f, 1f);
-        rect.anchoredPosition = new Vector2(180f, -240f); // под счётом очков
-        rect.sizeDelta = new Vector2(340f, 50f);
-
-        _coinText = obj.AddComponent<TextMeshProUGUI>();
-        _coinText.fontSize = 25;
-        _coinText.color = new Color(1f, 0.85f, 0.3f);
-        _coinText.alignment = TextAlignmentOptions.Left;
-        _coinText.fontStyle = FontStyles.Bold;
-        _coinText.textWrappingMode = TextWrappingModes.NoWrap;
+        // Левая надпись «МОНЕТЫ: N» убрана — баланс теперь показывается справа у иконки магазина (ShopUI).
+        // Один вызов нужен, чтобы оповестить подписчиков (HUD магазина) о текущем балансе.
         UpdateHud();
     }
 
     private void UpdateHud()
     {
         if (_coinText != null) _coinText.text = $"МОНЕТЫ: {_coinCount}";
+        OnCoinsChanged?.Invoke(_coinCount);
     }
 
     // Программный спрайт монетки: золотой кружок с тёмным ободком.
