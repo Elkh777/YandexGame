@@ -11,6 +11,10 @@ public class PlayerHealth : MonoBehaviour
     public float invincibilityTime = 0.5f;
     private bool _isInvincible = false;
     private float _invincibleUntil = 0f; // временная неуязвимость (например, во время рывка)
+
+    [Header("Падение за пределы карты")]
+    public float fallKillY = -22f;       // если игрок упал ниже — мгновенный Game Over (падение в яму/обрыв)
+    private bool _fellOut = false;
     private SpriteRenderer _spriteRenderer;
     private PlayerMovement movement;
     private PlayerAttack attack;
@@ -43,6 +47,20 @@ public class PlayerHealth : MonoBehaviour
         {
             _health = GetComponent<HealthSystem>();
             if (_health == null) _health = gameObject.AddComponent<HealthSystem>();
+        }
+    }
+
+    void Update()
+    {
+        // Падение за пределы карты (в яму/обрыв) — мгновенный проигрыш.
+        if (_fellOut) return;
+        EnsureHealth();
+        if (_health.IsDead) return;
+        if (transform.position.y < fallKillY)
+        {
+            _fellOut = true;
+            Debug.Log("💀 Игрок упал за пределы карты — Game Over.");
+            _health.TakeDamage(_health.currentHealth + 1f); // обнуляем HP → OnDeath → Die() → Game Over
         }
     }
 
